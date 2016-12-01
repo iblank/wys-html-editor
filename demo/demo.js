@@ -77,17 +77,12 @@ class HtmlEditor {
     this.parentElem.appendChild(this.editor);
     this.parentElem.appendChild(this.toolbar);
 
-    // "input" listener work in IE?? ...
-    // this.editor.addEventListener("input", function(event) {
-    //   let value = event.target.innerHTML;
-    //   context.checkHTML(value);
-    // }, false);
+    this.addEventListeners();
+  }
 
-    // buttons = this.toolbar.getElementsByTagName('button');
-    // for (var i = 0; i < buttons.length; i++) {
-    //   context.addButtonListener(buttons[i]);
-    // }
-
+  addEventListeners() {
+    var context = this;
+    
     this.editor.addEventListener("keydown", function(event) {
       context.checkKeyDown(event);
     }, false);
@@ -108,6 +103,8 @@ class HtmlEditor {
 
     this.editor.addEventListener("blur", function(event) {
       event.preventDefault();
+      // blur fires before mousedown, so we need to give the toolbar
+      // time to register a click before hiding it
       setTimeout(function() { context.checkOnBlur(event); }, 10);
     }, false);
 
@@ -155,22 +152,11 @@ class HtmlEditor {
     return li;
   }
 
-  findWordWithPrefix(prefix, str) {
-    var regex = new RegExp("\\b" + prefix + "(\\S+)", "gi"),
-        match = str.match(regex);
-
-    if (match) {
-      return match[0].replace(prefix, '');
-    }
-
-    return '';
-  }
-
   toolbarButtonClick(btnclass) {
     var savedSel;
     
     // find className that starts with "wys-tb-" (buttonClassPrefix)
-    btnclass = this.findWordWithPrefix(this.buttonClassPrefix, btnclass);
+    btnclass = Helper.findWordWithPrefix(this.buttonClassPrefix, btnclass);
 
     switch (btnclass) {
       case 'strong':
@@ -616,6 +602,17 @@ class Helper {
     } else {
       this.addClass(el, className);
     }
+  }
+
+  static findWordWithPrefix(prefix, str) {
+    var regex = new RegExp("\\b" + prefix + "(\\S+)", "gi"),
+        match = str.match(regex);
+
+    if (match) {
+      return match[0].replace(prefix, '');
+    }
+
+    return '';
   }
 };
 
