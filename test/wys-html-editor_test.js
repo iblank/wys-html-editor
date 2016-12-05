@@ -3,6 +3,7 @@
 
 var wys_html_editor = require('../lib/wys-html-editor');
 var MockBrowser = require('mock-browser').mocks.MockBrowser;
+var sinon = require("sinon");
 
 /*
   ======== A Handy Little Nodeunit Reference ========
@@ -42,7 +43,7 @@ exports['WysHtmlEditor'] = {
     var mockBrow = new MockBrowser(),
         document = mockBrow.getDocument(),
         newEl = document.createElement('div'),
-        options = { 'doc': document };
+        options = { 'doc': document, 'toolbar': ['b', 'i'] };
     
     newEl.setAttribute('class', 'wyseditorClass');
     newEl.innerHTML = 'Inner content.';
@@ -77,6 +78,77 @@ exports['WysHtmlEditor'] = {
 
     test.expect(1);
     test.equal(newToolbar.className, 'wys-html-editor-toolbar');
+    test.done();
+  },
+  'addEventListeners are added': function(test) {
+    var editstub = sinon.mock(this.wyseditor.editor).expects('addEventListener'),
+        toolstub = sinon.mock(this.wyseditor.toolbar).expects('addEventListener');
+
+    test.expect(2);
+    test.ok(editstub.exactly(4));
+    test.ok(toolstub.exactly(2));
+    test.done();
+  },
+  'create toolbar buttons': function(test) {
+    var result = this.wyseditor.createToolbarButtons(),
+        expect = '<li><button class="wys-editor-btn-strong" title="bold"><strong>B</strong></button></li><li><button class="wys-editor-btn-em" title="italic"><em>I</em></button></li>';
+    test.expect(1);
+    test.equal(result.innerHTML, expect);
+    test.done();
+  },
+  'create a toolbar button': function(test) {
+    var result = this.wyseditor.createToolbarButton('b'),
+        expect = '<button class="wys-editor-btn-strong" title="bold"><strong>B</strong></button>';
+    test.expect(1);
+    test.equal(result.innerHTML, expect);
+    test.done();
+  },
+  'bold button clicked': function(test) {
+    var execStub = sinon.mock(this.wyseditor).expects('execCommand'),
+        saveSelStub = sinon.stub(this.wyseditor.selection, 'saveSelection').returns(false),
+        restoreSelStub = sinon.stub(this.wyseditor.selection, 'restoreSelection'),
+        updateBtnsStub = sinon.stub(this.wyseditor, 'updateActiveToolbarButtons'),
+        prefixClass = this.wyseditor.options.classPrefix + 'btn-strong';
+
+    this.wyseditor.toolbarButtonClick(prefixClass);
+    test.expect(4);
+    test.ok(saveSelStub.calledOnce);
+    test.ok(restoreSelStub.calledOnce);
+    test.ok(updateBtnsStub.calledOnce);
+    test.ok(execStub.withArgs('bold'));
+    test.done();
+  },
+  'italic button clicked': function(test) {
+    var execStub = sinon.mock(this.wyseditor).expects('execCommand'),
+        saveSelStub = sinon.stub(this.wyseditor.selection, 'saveSelection').returns(false),
+        restoreSelStub = sinon.stub(this.wyseditor.selection, 'restoreSelection'),
+        updateBtnsStub = sinon.stub(this.wyseditor, 'updateActiveToolbarButtons'),
+        prefixClass = this.wyseditor.options.classPrefix + 'btn-em';
+
+    this.wyseditor.toolbarButtonClick(prefixClass);
+    test.expect(4);
+    test.ok(saveSelStub.calledOnce);
+    test.ok(restoreSelStub.calledOnce);
+    test.ok(updateBtnsStub.calledOnce);
+    test.ok(execStub.withArgs('italic'));
+    test.done();
+  },
+  'unordered-list button clicked': function(test) {
+    var execStub = sinon.mock(this.wyseditor).expects('execCommand'),
+        prefixClass = this.wyseditor.options.classPrefix + 'btn-ul';
+
+    this.wyseditor.toolbarButtonClick(prefixClass);
+    test.expect(1);
+    test.ok(execStub.withArgs('insertUnorderedList'));
+    test.done();
+  },
+  'ordered-list button clicked': function(test) {
+    var execStub = sinon.mock(this.wyseditor).expects('execCommand'),
+        prefixClass = this.wyseditor.options.classPrefix + 'btn-ol';
+
+    this.wyseditor.toolbarButtonClick(prefixClass);
+    test.expect(1);
+    test.ok(execStub.withArgs('insertOrderedList'));
     test.done();
   },
   'create toolbar button': function(test) {
