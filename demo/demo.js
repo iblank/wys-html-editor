@@ -9,16 +9,36 @@ var elem = document.getElementById('wyseditor'),
 /*jshint -W032, esnext:true */ /* ignore unnecessary semicolon */
 /*globals module, require, console, window, document, setTimeout*/
 'use strict';
-var Helper = require("./Helper"),
-    Selections = require("./Selection");
+var Helper = require("./classes/Helper"),
+    Selections = require("./classes/Selection");
 
 class HtmlEditor {
   constructor(e, o) {
-    var defaults = {
+    var doc = (typeof document === 'undefined') ? {} : document,
+        defaults = {
+          'doc' : doc,
           'disableMultiEmptyLines' : true,
           'disableShiftEnter' : true,
-          'toolbar' : ['b', 'i', 'ul', 'ol', 'indent', 'outdent']
+          'toolbar' : ['b', 'i', 'ul', 'ol', 'indent', 'outdent'],
+          'classPrefix' : 'wys-editor-'
         };
+
+    // initialize the parent element, selection and options
+    this.parentElem = e;
+    this.selection = new Selections();
+    this.options = Helper.objOverrideValues(defaults, o);
+    if (!this.options.doc) {
+      this.options['doc'] = document;
+    }
+
+    // then initialize all the other properties
+    this.init();
+  }
+
+  init() {
+    var context = this,
+        buttons,
+        cleanedHTML;
 
     this.blockTags = ['p', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'];
     this.inlineTags = ['span', 'b', 'strong', 'i', 'em'];
@@ -31,17 +51,10 @@ class HtmlEditor {
     };
     this.buttonObjs = {};
 
-    this.buttonClassPrefix = 'wys-tb-';
-    this.parentElem = e;
-    this.options = Helper.mergeObjs(defaults, o);
-    if (!this.options.doc) {
-      this.options['doc'] = document;
-    }
-    this.selection = new Selections();
-    this.events = [];
+    // this.classPrefix = 'wys-tb-';
     this.selText = '';
     this.toolbarFocus = false;
-    this.key = {
+    this.keyMap = {
       'ENTER': 13,
       'ARROWUP': 38,
       'ARROWDOWN': 40,
@@ -49,24 +62,8 @@ class HtmlEditor {
       'ARROWRIGHT': 39
     };
 
-    this.init();
-  }
-
-  init() {
-    var context = this,
-        buttons,
-        cleanedHTML;
-
-    this.editor = this.options['doc'].createElement('div');
-    this.editor.setAttribute('contentEditable', true);
-    this.editor.classList.add('wys-html-editor-element');
-    this.editor.setAttribute('role', 'textbox');
-    this.editor.setAttribute('aria-multiline', true);
-    
-    this.toolbar = this.options['doc'].createElement('div');
-    this.toolbar.classList.add('wys-html-editor-toolbar');
-    this.createToolbarButtons();
-    
+    this.editor = this.createEditor();
+    this.toolbar = this.createToolbar();
     if (this.parentElem.innerHTML === '') {
       this.editor.innerHTML = '<p><br></p>';
     } else {
@@ -78,6 +75,30 @@ class HtmlEditor {
     this.parentElem.appendChild(this.toolbar);
 
     this.addEventListeners();
+    this.updateValue();
+  }
+
+  createEditor() {
+    var editor = this.options['doc'].createElement('div');
+    
+    editor.setAttribute('contentEditable', true);
+    editor.classList.add('wys-html-editor-element');
+    editor.setAttribute('role', 'textbox');
+    editor.setAttribute('aria-multiline', true);
+
+    return editor;
+  }
+
+  createToolbar() {  
+    var toolbar = this.options['doc'].createElement('div'),
+        buttons;
+    
+    toolbar.classList.add('wys-html-editor-toolbar');
+    buttons = this.createToolbarButtons();
+
+    toolbar.appendChild(buttons);
+    
+    return toolbar;
   }
 
   addEventListeners() {
@@ -126,25 +147,30 @@ class HtmlEditor {
     for (i = 0; i < btns.length; i++) {
       // if it's a recognized button
       if (btns[i] in this.buttonMap) {
-        ul.appendChild(this.createButton(btns[i]));
+        ul.appendChild(this.createToolbarButton(btns[i]));
       }
     }
 
-    this.toolbar.appendChild(ul);
+    return ul;
   }
 
-  createButton(btn) {
+  // btn is a string that cooresponds to a particular button
+  createToolbarButton(btn) {
     var li = this.options['doc'].createElement('li'),
         btnNode = this.options['doc'].createElement('button'),
         context = this;
 
-    btnNode.setAttribute('class', this.buttonClassPrefix + this.buttonMap[btn][2]);
+    // add the button class (ex: wys-editor-btn-strong)
+    btnNode.setAttribute('class', this.options.classPrefix + 'btn-' + this.buttonMap[btn][2]);
+    // add button html (ex: <strong>B</strong>)
     btnNode.innerHTML = this.buttonMap[btn][1];
 
+    // add button click listener, with function to respond to event
     btnNode.addEventListener("click", function(event) {
       context.toolbarButtonClick(event.target.className);
     }, false);
 
+    // add each button to an array, to keep track of them
     this.buttonObjs[this.buttonMap[btn][2]] = btnNode;
 
     li.appendChild(btnNode);
@@ -153,10 +179,14 @@ class HtmlEditor {
   }
 
   toolbarButtonClick(btnclass) {
-    var savedSel;
+    var savedSel,
+        foundClass;
     
-    // find className that starts with "wys-tb-" (buttonClassPrefix)
-    btnclass = Helper.findWordWithPrefix(this.buttonClassPrefix, btnclass);
+    // find className that starts with "wys-editor-btn-"
+    foundClass = Helper.findWordWithPrefix(this.options.classPrefix + 'btn-', btnclass);
+    if (foundClass !== '') {
+      btnclass = foundClass;
+    }
 
     switch (btnclass) {
       case 'strong':
@@ -392,26 +422,32 @@ class HtmlEditor {
 
   // check the current text selection to see what tags are within it
   updateActiveToolbarButtons(text) {
-      var tags;
+      var tags, sharedHierarchy;
       
       // TODO: return wrapper tags from selection function instead...
       this.selText = (typeof text !== "undefined") ? text : this.selection.getSelectionHTML();
-      tags = this.findTagWrappers(this.selText);
+      sharedHierarchy = this.selection.getSelectionHierarchy(this.editor);
+      // console.log(sharedHierarchy);
+      // tags = this.findTagWrappers(this.selText);
 
-      this.highlightToolbarButtons(tags);
+      this.highlightToolbarButtons(sharedHierarchy);
   }
 
   // matches the current tags from the selection against
   // the buttons in the toolbar
   highlightToolbarButtons(tags) {
-    var i;
+    var i, tag;
     
     // remove active class from all the buttons
     this.unHighlightToolbarButtons();
-    for (i = 0; i < tags.length; i++) {
+    for (i = tags.length - 1; i >= 0; i--) {
+      tag = tags[i].toLowerCase();
       // if the tag matches a button, set it to active
-      if (tags[i] in this.buttonObjs) {
-        Helper.addClass(this.buttonObjs[tags[i]], 'active');
+      if (tag in this.buttonObjs) {
+        Helper.addClass(this.buttonObjs[tag], 'active');
+      }
+      if (tag === 'ul' || tag === 'ol') {
+        break;
       }
     }
   }
@@ -456,17 +492,17 @@ class HtmlEditor {
     var text = this.selection.getSelectionHTML(),
         tags,
         sameSelection = (this.selText === text);
-    
-    // update the toolbar buttons for current selection
-    this.updateActiveToolbarButtons(text);
 
     if (text.length > 0 && !sameSelection) {
       // A text selection has been made!!!
+      // update the toolbar buttons for current selection
+      this.updateActiveToolbarButtons(text);
       // TODO: show toolbar function...
       this.toolbarFocus = false;
       this.toolbar.style.display = 'block';
       this.setToolbarPos(this.selection.selectPos);
     } else {
+      this.selText = '';
       this.toolbar.style.display = 'none';
     }
     // this.selText = text;
@@ -477,10 +513,10 @@ class HtmlEditor {
     var key = event.which || event.keyCode;
     // shift+arrow selections
     if (event.shiftKey &&
-        (key === this.key.ARROWUP ||
-        key === this.key.ARROWDOWN ||
-        key === this.key.ARROWLEFT ||
-        key === this.key.ARROWRIGHT)) {
+        (key === this.keyMap.ARROWUP ||
+        key === this.keyMap.ARROWDOWN ||
+        key === this.keyMap.ARROWLEFT ||
+        key === this.keyMap.ARROWRIGHT)) {
         this.textSelection();
     }
   }
@@ -490,7 +526,9 @@ class HtmlEditor {
     var preElem = this.options['doc'].getElementById('output-code'),
         curVal = this.editor.innerHTML;
 
-    preElem.innerText = curVal;
+    if (preElem) {
+      preElem.innerText = curVal;
+    }
   }
 
   // Fires the browser execCommand to edit selections
@@ -534,11 +572,11 @@ class HtmlEditor {
   checkKeyDown(event) {
     var key = event.which || event.keyCode;
     // disable shift+enter
-    if (this.options.disableShiftEnter && key === this.key.ENTER && event.shiftKey) {
+    if (this.options.disableShiftEnter && key === this.keyMap.ENTER && event.shiftKey) {
       event.preventDefault();
     }
     // disable multiple empty lines
-    if (this.options.disableMultiEmptyLines && key === this.key.ENTER && event.shiftKey === false) {
+    if (this.options.disableMultiEmptyLines && key === this.keyMap.ENTER && event.shiftKey === false) {
       var selElem = this.selection.getBaseChildSelectionElement(true, this.editor),
           nextSib = selElem.nextElementSibling;
       
@@ -568,7 +606,7 @@ class HtmlEditor {
 };
 
 module.exports = HtmlEditor;
-},{"./Helper":3,"./Selection":4}],3:[function(require,module,exports){
+},{"./classes/Helper":3,"./classes/Selection":4}],3:[function(require,module,exports){
 /*jshint -W032 */ /* ignore unnecessary semicolon */
 /*globals module*/
 'use strict';
@@ -675,7 +713,6 @@ class Selection {
     var range, sel, rects, rightMax, leftMin, i;
     if (document.selection) {
       range = document.selection.createRange();
-      // range.collapse(true);
       this.selectPos.x = range.boundingLeft;
       this.selectPos.y = range.boundingTop;
       this.selectPos.w = range.boundingWidth;
@@ -685,7 +722,6 @@ class Selection {
       if (sel.rangeCount) {
         range = sel.getRangeAt(0).cloneRange();
         if (range.getClientRects) {
-          // range.collapse(true);
           rects = range.getClientRects();
           // return rect that encompasses all rects...
           if (rects.length > 0) {
@@ -734,26 +770,33 @@ class Selection {
     }
   }
 
-  getSelectionRange() {
-    var range, sel;
+  getSelectionObj() {
     if (document.selection) {
-      range = document.selection.createRange();
+      return document.selection;
+    }
+    return window.getSelection();
+  }
+
+  getSelectionRange(selection) {
+    var range;
+
+    if (document.selection) {
+      range = selection.createRange();
     } else {
-      sel = window.getSelection();
-      if (sel.getRangeAt) {
-        if (sel.rangeCount > 0) {
-          range = sel.getRangeAt(0);
+      if (selection.getRangeAt) {
+        if (selection.rangeCount > 0) {
+          range = selection.getRangeAt(0);
         }
       } else {
         // Old WebKit
         range = document.createRange();
-        range.setStart(sel.anchorNode, sel.anchorOffset);
-        range.setEnd(sel.focusNode, sel.focusOffset);
+        range.setStart(selection.anchorNode, selection.anchorOffset);
+        range.setEnd(selection.focusNode, selection.focusOffset);
 
         // Handle the case when the selection was selected backwards (from the end to the start in the document)
-        if (range.collapsed !== sel.isCollapsed) {
-          range.setStart(sel.focusNode, sel.focusOffset);
-          range.setEnd(sel.anchorNode, sel.anchorOffset);
+        if (range.collapsed !== selection.isCollapsed) {
+          range.setStart(selection.focusNode, selection.focusOffset);
+          range.setEnd(selection.anchorNode, selection.anchorOffset);
         }
       }
     }
@@ -782,20 +825,26 @@ class Selection {
     return cStyle;
   }
 
-  getSharedElementParents(selection, range) {
-    var ancestor = range.commonAncestorContainer,
-        allSelected = [],
+  getSelectionHierarchy(toplevel) {
+    var selection = this.getSelectionObj(),
+        range,
+        ancestor,
+        selectedTags = [],
         nodes,
         style,
         tags = [],
-        allTags = [],
-        contents,
         i,
         div,
         partial = false,
         nodeCount = 0,
-        addTag = [];
+        ancestorTags = [];
 
+    // everything below depends on finding the range using getRangeAt
+    if (!selection.getRangeAt) {
+      return [];
+    }
+    range = selection.getRangeAt(0);
+    ancestor = range.commonAncestorContainer;
     if (ancestor.nodeType === 3) {
       partial = true;
       ancestor = ancestor.parentNode;
@@ -810,34 +859,94 @@ class Selection {
       div.appendChild(range.cloneContents());
       nodes = div.childNodes;
       style = this.getElementDefaultDisplay(ancestor.tagName);
-      addTag = (style === 'inline') ? [ancestor.tagName] : [];
+    }
+
+    // find all the common parent tags within the element
+    while (ancestor && ancestor !== toplevel) {
+      ancestorTags.unshift(ancestor.tagName);
+      ancestor = ancestor.parentNode;
     }
 
     for (i = 0; i < nodes.length; i++) {
       if (partial) {
         if (selection.containsNode(nodes[i], true) ) {
-          allSelected.push(nodes[i].tagName);
+          selectedTags.push(nodes[i].tagName);
         }
       } else {
         if (nodes[i].nodeType === 3) {
           if (nodes[i].textContent.trim() !== '') {
-            allSelected = [];
+            selectedTags = [];
             break;
           }
         } else {
           tags = this.allTagsWithinElement(nodes[i], [nodes[i].tagName]);
           nodeCount++;
           if (nodeCount === 1) {
-            allSelected = tags;
+            selectedTags = tags;
           } else {
-            allSelected = this.arrayIntersect(allSelected, tags);
+            selectedTags = this.arrayIntersect(selectedTags, tags);
           }
         }
       }
     }
 
-    return allSelected.concat(addTag);
+    return ancestorTags.concat(selectedTags);
   }
+
+  // getSharedElementParents(selection, range) {
+  //   var ancestor = range.commonAncestorContainer,
+  //       allSelected = [],
+  //       nodes,
+  //       style,
+  //       tags = [],
+  //       i,
+  //       div,
+  //       partial = false,
+  //       nodeCount = 0,
+  //       addTag = [];
+
+  //   if (ancestor.nodeType === 3) {
+  //     partial = true;
+  //     ancestor = ancestor.parentNode;
+  //     style = this.getElementDefaultDisplay(ancestor.tagName);
+  //     while (style === 'inline') {
+  //       ancestor = ancestor.parentNode;
+  //       style = this.getElementDefaultDisplay(ancestor.tagName);
+  //     }
+  //     nodes = ancestor.getElementsByTagName("*");
+  //   } else {
+  //     div = document.createElement('div');
+  //     div.appendChild(range.cloneContents());
+  //     nodes = div.childNodes;
+  //     style = this.getElementDefaultDisplay(ancestor.tagName);
+  //     addTag = (style === 'inline') ? [ancestor.tagName] : [];
+  //   }
+
+  //   for (i = 0; i < nodes.length; i++) {
+  //     if (partial) {
+  //       if (selection.containsNode(nodes[i], true) ) {
+  //         allSelected.push(nodes[i].tagName);
+  //       }
+  //     } else {
+  //       if (nodes[i].nodeType === 3) {
+  //         if (nodes[i].textContent.trim() !== '') {
+  //           allSelected = [];
+  //           break;
+  //         }
+  //       } else {
+  //         tags = this.allTagsWithinElement(nodes[i], [nodes[i].tagName]);
+  //         nodeCount++;
+  //         if (nodeCount === 1) {
+  //           allSelected = tags;
+  //         } else {
+  //           allSelected = this.arrayIntersect(allSelected, tags);
+  //         }
+  //       }
+  //     }
+  //   }
+
+  //   return allSelected.concat();
+  // }
 
   arrayIntersect(a1, a2) {
     var i, aNew = [];
@@ -882,8 +991,6 @@ class Selection {
       if (sel.rangeCount) {
         container = document.createElement("div");
         for (i = 0; i < sel.rangeCount; ++i) {
-          // sharedElems = this.getSharedElementParents(sel, sel.getRangeAt(i));
-          // console.log('shared: ' + sharedElems);
           container.appendChild(sel.getRangeAt(i).cloneContents());
         }
         html = container.innerHTML;
@@ -1049,7 +1156,8 @@ class Selection {
 
   // get the parent element of the current selection
   getSelectionElement(isStart) {
-    var range = this.getSelectionRange(),
+    var sel = this.getSelectionObj(),
+        range = this.getSelectionRange(sel),
         container;
     
     if (document.selection) {
@@ -1072,7 +1180,7 @@ module.exports = Selection;
 },{}],5:[function(require,module,exports){
 /*jshint -W032, esnext:true */ /* -W032 = ignore unnecessary semicolon */
 /*globals module, require*/
-var HtmlEditor = require("./classes/CoreEditor");
+var HtmlEditor = require("./js/CoreEditor");
 
 
 function WysHtmlEditor(element, options) {
@@ -1082,4 +1190,4 @@ function WysHtmlEditor(element, options) {
 }
 
 module.exports = WysHtmlEditor;
-},{"./classes/CoreEditor":2}]},{},[1]);
+},{"./js/CoreEditor":2}]},{},[1]);

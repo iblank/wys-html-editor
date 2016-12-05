@@ -50,6 +50,19 @@ exports['WysHtmlEditor'] = {
     // setup here
     done();
   },
+  'create toolbar button': function(test) {
+    var expected = this.wyseditor.options.classPrefix + 'btn-strong',
+        result,
+        btn;
+    test.expect(1);
+
+    result = this.wyseditor.createToolbarButton('b');
+    btn = result.getElementsByTagName('button')[0];
+
+    test.equal(btn.className, expected);
+
+    test.done();
+  },
   'returns element used': function(test) {
     test.expect(1);
     // tests here
