@@ -50,6 +50,35 @@ exports['WysHtmlEditor'] = {
     // setup here
     done();
   },
+  'init empty editor': function(test) {
+    var mockBrow = new MockBrowser(),
+        document = mockBrow.getDocument(),
+        newEl = document.createElement('div'),
+        options = { 'doc': document },
+        wyseditor1;
+    
+    newEl.setAttribute('class', 'wyseditorClass');
+    wyseditor1 = new wys_html_editor(newEl, options);
+
+    test.expect(1);
+    // tests here
+    test.equal(wyseditor1.getValue(), '<p><br></p>');
+    test.done();
+  },
+  'create a new editor element': function(test) {
+    var newEditor = this.wyseditor.createEditor();
+
+    test.expect(1);
+    test.equal(newEditor.className, 'wys-html-editor-element');
+    test.done();
+  },
+  'create a new toolbar element': function(test) {
+    var newToolbar = this.wyseditor.createToolbar();
+
+    test.expect(1);
+    test.equal(newToolbar.className, 'wys-html-editor-toolbar');
+    test.done();
+  },
   'create toolbar button': function(test) {
     var expected = this.wyseditor.options.classPrefix + 'btn-strong',
         result,
