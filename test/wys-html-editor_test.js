@@ -66,7 +66,7 @@ exports['WysHtmlEditor'] = {
   'returns element used': function(test) {
     test.expect(1);
     // tests here
-    test.equal(this.wyseditor.getElement().innerHTML, '<p>Inner content.</p>', 'should be awesome.');
+    test.equal(this.wyseditor.getValue(), '<p>Inner content.</p>', 'should be awesome.');
     test.done();
   }
 };

@@ -596,6 +596,11 @@ class HtmlEditor {
     return this.editor;
   }
 
+  // returns the value of the WYSIWYG
+  getValue() {
+    return this.editor.innerHTML;
+  }
+
   // returns the current set of options
   getOptions() {
     return this.options;
