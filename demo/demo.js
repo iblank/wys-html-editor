@@ -3,11 +3,18 @@
 var wyshtml = require("../lib/wys-html-editor");
 
 var elem = document.getElementById('wyseditor'),
-    editor = new wyshtml(elem);
+    preElem = document.getElementById('output-code'),
+    editor;
+
+elem.addEventListener('change', function(event) {
+    preElem.innerText = event.value;
+}, false);
+
+editor = new wyshtml(elem);
 
 },{"../lib/wys-html-editor":6}],2:[function(require,module,exports){
 /*jshint -W032, esnext:true */ /* ignore unnecessary semicolon */
-/*globals module, require, console, window, document, setTimeout*/
+/*globals module, require, console, window, document, setTimeout, CustomEvent*/
 'use strict';
 var Helper = require("./classes/Helper"),
     DOMHelper = require("./classes/DOMHelper"),
@@ -16,8 +23,10 @@ var Helper = require("./classes/Helper"),
 class HtmlEditor {
   constructor(e, o) {
     var doc = (typeof document === 'undefined') ? {} : document,
+        win = (typeof window === 'undefined') ? {} : window,
         defaults = {
           'doc' : doc,
+          'win' : win,
           'disableMultiEmptyLines' : true,
           'disableShiftEnter' : true,
           'toolbar' : ['b', 'i', 'ul', 'ol', 'indent', 'outdent'],
@@ -72,6 +81,15 @@ class HtmlEditor {
     this.parentElem.appendChild(this.toolbar);
 
     this.addEventListeners();
+    
+    // CustomEvent not available to unit tests
+    if (typeof CustomEvent !== 'undefined') {
+      this.changeEvent = new CustomEvent('change');
+    } else {
+      this.changeEvent = this.options.doc.createEvent("HTMLEvents");
+      this.changeEvent.initEvent("change", false, true);
+    }
+
     this.updateValue();
   }
 
@@ -116,7 +134,6 @@ class HtmlEditor {
       context.selection.updateCursorPosition();
       context.selection.updateSelectionElement();
       context.textSelection();
-      context.updateValue();
     }, false);
 
     this.editor.addEventListener("blur", function(event) {
@@ -194,6 +211,7 @@ class HtmlEditor {
         this.domHelper.replaceDomTags(this.editor, 'b', 'strong');
         this.domHelper.removeEmptyDomTags(this.editor, 'strong');
         this.selection.restoreSelection(this.editor, savedSel);
+        this.selText = this.selection.getSelectionHTML();
         this.updateActiveToolbarButtons(); // highlight/unhighlight buttons
         break;
       case 'em':
@@ -202,6 +220,7 @@ class HtmlEditor {
         this.domHelper.replaceDomTags(this.editor, 'i', 'em');
         this.domHelper.removeEmptyDomTags(this.editor, 'em');
         this.selection.restoreSelection(this.editor, savedSel);
+        this.selText = this.selection.getSelectionHTML();
         this.updateActiveToolbarButtons(); // highlight/unhighlight buttons
         break;
       case 'ul':
@@ -229,10 +248,11 @@ class HtmlEditor {
         top = dims.y - tb_height,
         left = dims.x + (dims.w / 2) - (tb_width / 2);
 
-    if (this.isEmptyPara(this.selection.selectElem)) {
-      top = this.selection.selectElem.offsetTop - tb_height;
-      left = this.selection.selectElem.offsetLeft - (tb_width / 2);
-    }
+    // TODO: this will be useful for the widget button later...
+    // if (this.domHelper.isEmptyPara(this.selection.selectElem)) {
+    //   top = this.selection.selectElem.offsetTop - tb_height;
+    //   left = this.selection.selectElem.offsetLeft - (tb_width / 2);
+    // }
 
     // keep toolbar from overflowing left of screen
     if (left < 0) {
@@ -248,27 +268,9 @@ class HtmlEditor {
     this.toolbar.style.left = left+'px';
   }
 
-  // is the element empty
-  isEmpty(el) {
-    var text = el.textContent || el.innerText || "";
-    return text.trim() === "";
-  }
-
-  // is the element empty and a p tag
-  isEmptyPara(el) {
-    var empty = this.isEmpty(el);
-    return empty && el.tagName && el.tagName.toLowerCase() === 'p';
-  }
-
   // check the current text selection to see what tags are within it
-  updateActiveToolbarButtons(text) {
-      var tags, sharedHierarchy;
-      
-      // TODO: return wrapper tags from selection function instead...
-      this.selText = (typeof text !== "undefined") ? text : this.selection.getSelectionHTML();
-      sharedHierarchy = this.selection.getSelectionHierarchy(this.editor);
-      // console.log(sharedHierarchy);
-      // tags = this.findTagWrappers(this.selText);
+  updateActiveToolbarButtons() {
+      var sharedHierarchy = this.selection.getSelectionHierarchy(this.editor);
 
       this.highlightToolbarButtons(sharedHierarchy);
   }
@@ -309,6 +311,7 @@ class HtmlEditor {
 
     if (text.length > 0 && !sameSelection) {
       // A text selection has been made!!!
+      this.selText = text;
       // update the toolbar buttons for current selection
       this.updateActiveToolbarButtons(text);
       // TODO: show toolbar function...
@@ -337,18 +340,16 @@ class HtmlEditor {
 
   // outputs the current value of the WYSIWYG to a pre tag
   updateValue() {
-    var preElem = this.options['doc'].getElementById('output-code'),
-        curVal = this.editor.innerHTML;
-
-    if (preElem) {
-      preElem.innerText = curVal;
-    }
+    this.changeEvent.value = this.getValue(); // update the value
+    this.parentElem.dispatchEvent(this.changeEvent); // dispatch
   }
 
   // Fires the browser execCommand to edit selections
   // https://developer.mozilla.org/en-US/docs/Web/API/document.execCommand
   // http://www.quirksmode.org/dom/execCommand.html
   execCommand(command, param, force_selection) {
+    var sel, range;
+
     // ensure focus is on the editor
     this.editor.focus();
     // returns 'selection inside editor'
@@ -357,7 +358,7 @@ class HtmlEditor {
     }
     
     // for webkit, mozilla, opera
-    if (window.getSelection) {
+    if (this.options['win'].getSelection) {
       // Buggy, call within 'try/catch'
       try {
         if (this.options['doc'].queryCommandSupported && !this.options['doc'].queryCommandSupported(command)) {
@@ -367,17 +368,15 @@ class HtmlEditor {
       } catch(e) {}
     // for IE
     } else if (this.options['doc'].selection) {
-      var sel = this.options['doc'].selection;
-      if (sel.type !== 'None') {
-        var range = sel.createRange();
-        // Buggy, call within 'try/catch'
-        try {
-          if(!range.queryCommandEnabled(command)) {
-            return false;
-          }
-          return range.execCommand(command, false, param);
-        } catch(e) {}
-      }
+      sel = this.selection.getSelectionObj();
+      range = this.selection.getSelectionRange(sel);
+      // Buggy, call within 'try/catch'
+      try {
+        if(!range.queryCommandEnabled(command)) {
+          return false;
+        }
+        return range.execCommand(command, false, param);
+      } catch(e) {}
     }
     return false;
   }
@@ -396,9 +395,9 @@ class HtmlEditor {
       
      // TODO: need to check more scenarios...
      // current element is an empty paragraph
-      if (this.isEmptyPara(selElem)) {
+      if (this.domHelper.isEmptyPara(selElem)) {
         event.preventDefault();
-      } else if (nextSib && this.isEmptyPara(nextSib)) {
+      } else if (nextSib && this.domHelper.isEmptyPara(nextSib)) {
         // next sibling is not null and is an empty paragraph
         // event.preventDefault();
         // move cursor to empty sibling
@@ -437,6 +436,18 @@ class DOMHelper {
     this.doc = (!doc) ? document : doc;
   }
 
+  // is the element empty
+  isEmpty(el) {
+    var text = el.textContent || el.innerText || "";
+    return text.trim() === "";
+  }
+
+  // is the element empty and a p tag
+  isEmptyPara(el) {
+    var empty = this.isEmpty(el);
+    return empty && el.tagName && el.tagName.toLowerCase() === 'p';
+  }
+  
   // Standardizes bold/italic tags and crawls through nodes in DOM element, 
   // so that direct descendants have approved block-level tags
   cleanHTML(dom) {
