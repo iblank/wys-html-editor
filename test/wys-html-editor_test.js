@@ -26,18 +26,6 @@ var wys_html_editor = require('../lib/wys-html-editor'),
     test.ifError(value)
 */
 
-/*exports['awesome'] = {
-  setUp: function(done) {
-    // setup here
-    done();
-  },
-  'no args': function(test) {
-    test.expect(1);
-    // tests here
-    test.equal(wys_html_editor.awesome(), 'awesome', 'should be awesome.');
-    test.done();
-  }
-};*/
 exports['WysHtmlEditor'] = {
   wyseditor: {},
   setUp: function(done) {
