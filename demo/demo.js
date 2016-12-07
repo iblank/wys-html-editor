@@ -12,7 +12,7 @@ elem.addEventListener('change', function(event) {
 
 editor = new wyshtml(elem);
 
-},{"../lib/wys-html-editor":6}],2:[function(require,module,exports){
+},{"../lib/wys-html-editor":7}],2:[function(require,module,exports){
 /*jshint -W032, esnext:true */ /* ignore unnecessary semicolon */
 /*globals module, require, console, window, document, setTimeout, CustomEvent*/
 'use strict';
@@ -36,7 +36,7 @@ class HtmlEditor {
     // initialize the parent element, selection and options
     this.parentElem = e;
     this.options = Helper.objOverrideValues(defaults, o);
-    this.selection = new Selections();
+    this.selection = Selections.createNew(this.options.win, this.options.doc);
     this.domHelper = new DOMHelper(this.options.doc);
 
     // then initialize all the other properties
@@ -348,8 +348,6 @@ class HtmlEditor {
   // https://developer.mozilla.org/en-US/docs/Web/API/document.execCommand
   // http://www.quirksmode.org/dom/execCommand.html
   execCommand(command, param, force_selection) {
-    var sel, range;
-
     // ensure focus is on the editor
     this.editor.focus();
     // returns 'selection inside editor'
@@ -366,18 +364,8 @@ class HtmlEditor {
         }
         return this.options['doc'].execCommand(command, false, param);
       } catch(e) {}
-    // for IE
-    } else if (this.options['doc'].selection) {
-      sel = this.selection.getSelectionObj();
-      range = this.selection.getSelectionRange(sel);
-      // Buggy, call within 'try/catch'
-      try {
-        if(!range.queryCommandEnabled(command)) {
-          return false;
-        }
-        return range.execCommand(command, false, param);
-      } catch(e) {}
     }
+
     return false;
   }
 
@@ -426,7 +414,7 @@ class HtmlEditor {
 module.exports = HtmlEditor;
 },{"./classes/DOMHelper":3,"./classes/Helper":4,"./classes/Selection":5}],3:[function(require,module,exports){
 /*jshint -W032 */ /* ignore unnecessary semicolon */
-/*globals module, document*/
+/*globals module, document, console*/
 'use strict';
 
 class DOMHelper {
@@ -479,7 +467,7 @@ class DOMHelper {
 
   // Loops through DOM node and returns only approved inline html
   cleanInternal(node, tag) {
-    var newHTML = '', children, i;
+    var newHTML = '', segment = '', cleanInt, wrap = 'nonsense', children, i;
 
     // if type is textNode return it
     if (node.nodeType === 3) {
@@ -487,8 +475,29 @@ class DOMHelper {
     }
     children = node.childNodes;
 
+    // groups segments of inline nodes within wrapper groups
     for (i = 0; i < children.length; i++) {
-      newHTML+= this.cleanInternalChild(children[i], tag);
+      // format of return: [html, wrap tag]...
+      cleanInt = this.cleanInternalChild(children[i], tag);
+
+      // if there is a new wrap tag
+      if (cleanInt[1] !== wrap) {
+        // if there is an existing segment, add it in
+        if (segment !== '') {
+          newHTML+= this.wrapHTML(segment, wrap);
+        }
+        // start new html segment
+        segment = cleanInt[0];
+        // new wrap tag
+        wrap = cleanInt[1];
+      } else {
+        // tag wrap was the same, so keep adding to html segment
+        segment+= cleanInt[0];
+      }
+    }
+    // last html segment is added after for loop
+    if (segment !== '') {
+      newHTML+= this.wrapHTML(segment, wrap);
     }
 
     return newHTML;
@@ -496,50 +505,91 @@ class DOMHelper {
 
   // Deep dives into a DOM node to return innerHTML with approved inline tags,
   // or specified block tags
+  // returns array of strings: [innerHTML, wrap tag]
   cleanInternalChild(child, tag) {
-    var childTag = (child.tagName) ? child.tagName.toLowerCase() : 'textnode',
+    var childTag = (typeof child.tagName !== 'undefined') ? child.tagName.toLowerCase() : 'textnode',
         tagBlock = false,
+        wrap = '',
         internalHTML;
 
     // Check special case tags, with strict dependencies
     if (tag === 'ul' || tag === 'ol') {
-      // everything except empty textnodes (ignored) get wrapped in li tag
-      if (childTag !== 'textnode' || (childTag === 'textnode' && child.textContent.trim() !== '')) {
-        childTag = 'li';
+      // if not li, then include as inline and wrap in li
+      if (childTag !== 'li') {
+        // inline tags only...
+        childTag = this.inlineOnly(childTag);
+        wrap = 'li';
       }
       tagBlock = true;
+
     } else if (tag === 'li') {
-      if (this.inlineTags.indexOf(childTag) === -1 && childTag !== 'ul' && childTag !== 'ol') {
-        childTag = 'none';
-      }
+      // inline tags, ul and ol only...
+      childTag = this.inlineOnly(childTag, ['ul', 'ol']);
+
     } else if (tag === 'blockquote') {
+      // if not p or footer, then include as inline and wrap in p
       if (childTag !== 'p' && childTag !== 'footer') {
-        childTag = 'p';
+        // inline tags only
+        childTag = this.inlineOnly(childTag);
+        wrap = 'p';
       }
       tagBlock = true;
-    } else if (tag === 'footer' && childTag !== 'cite') {
-      childTag = 'cite';
+
+    } else if (tag === 'footer') {
+      // if not cite, then include as inline and wrap in cite
+      if (childTag !== 'cite') {
+        // inline tags only...
+        childTag = this.inlineOnly(childTag);
+        wrap = 'cite';
+      }
       tagBlock = true;
-    } else if (this.inlineTags.indexOf(childTag) === -1 && childTag !== 'textnode') {
-      childTag = 'none';
+
+    } else {
+      childTag = this.inlineOnly(childTag);
     }
 
-    // check for non-wrapped html
     if (childTag === 'textnode') {
-      // do not include textnodes as direct descendants of block elements
-      // where they're not allowed (ul, ol, blockquote, footer, etc.)
-      if (!tagBlock) {
-        return child.textContent;
+      // prevents wrapping empty textnodes into blocklevel elements
+      if (tagBlock && child.textContent.trim() === '') {
+        return ['', ''];
       }
-      return '';
-    // if child tag not allowed, throw out tag and dig deeper
-    } else if (childTag === 'none') {
-      return this.cleanInternal(child, childTag);
+      childTag = '';
     }
 
-    // if it is an allowed tag, wrap in that tag and dig deeper
+    // clean the internals of this child element
     internalHTML = this.cleanInternal(child, childTag);
-    return '<' + childTag + '>' + internalHTML + '</' + childTag + '>';
+    // wrap the html with the approved tag, or empty string if not approved
+    return [this.wrapHTML(internalHTML, childTag), wrap];
+  }
+
+  // returns '' if tag isn't inline or a given exception
+  inlineOnly(tag, exceptions) {
+    var i, flag = false;
+    if (!exceptions) {
+      exceptions = [];
+    }
+    for (i = 0; i < exceptions.length; i++) {
+      if (exceptions[i] === tag) {
+        flag = true;
+        break;
+      }
+    }
+    if (this.inlineTags.indexOf(tag) === -1 && tag !== 'textnode' && !flag) {
+      return '';
+    }
+    return tag;
+  }
+
+  // wraps html in a given tag
+  wrapHTML(html, tag) {
+    if (tag === '') {
+      return html;
+    }
+    // trim the contents of block level tags
+    if (this.blockTags.indexOf(tag) !== -1) {
+      html = html.trim();
+    }
+    return '<' + tag + '>' + html + '</' + tag + '>';
   }
 
   // find specified tags within DOM node and remove if empty
@@ -568,7 +618,7 @@ class DOMHelper {
   // copy everything out of the old node and paste into a newly created tag,
   // then swap the old out for the new
   swapTags(oldnode, newtag) {
-    var newnode = this.doc.createElement(newtag), i;
+    var newnode = this.doc.createElement(newtag), i, attr;
 
     // Copy the children
     while (oldnode.firstChild) {
@@ -577,9 +627,11 @@ class DOMHelper {
 
     // Copy the attributes
     for (i = oldnode.attributes.length - 1; i >= 0; i--) {
-      newnode.attributes.setNamedItem(oldnode.attributes[i].cloneNode());
+      attr = oldnode.attributes.item(i);
+      newnode.setAttribute(attr.nodeName, attr.nodeValue);
+      // newnode.attributes.setNamedItem(oldnode.attributes[i].cloneNode());
     }
-
+    
     // Replace it
     oldnode.parentNode.replaceChild(newnode, oldnode);
   }
@@ -690,10 +742,30 @@ class Helper {
 module.exports = Helper;
 },{}],5:[function(require,module,exports){
 /*jshint -W032 */ /* ignore unnecessary semicolon */
+/*globals module, require, console*/
+'use strict';
+var SelectionModern = require("./selectionClasses/SelectionModern");
+
+class Selection {
+  static createNew(win, doc) {
+    // window.getSelection() is available to all browsers, except < IE9 (not supported currently)
+   if (typeof win.getSelection === 'undefined') {
+     return null;
+   }
+   return new SelectionModern(win, doc);
+  }
+};
+
+module.exports = Selection;
+},{"./selectionClasses/SelectionModern":6}],6:[function(require,module,exports){
+/*jshint -W032 */ /* ignore unnecessary semicolon */
 /*globals module, console, window, document*/
 'use strict';
-class Selection {
-  constructor() {
+class SelectionModern {
+  constructor(win, doc) {
+    // pass in window and document objects, to make unit testing much easier
+    this.win = win;
+    this.doc = doc;
     this.length = 0;
     this.selectPos = {
       'x': 0,
@@ -708,40 +780,33 @@ class Selection {
 
   updateCursorPosition() {
     var range, sel, rects, rightMax, leftMin, i;
-    if (document.selection) {
-      range = document.selection.createRange();
-      this.selectPos.x = range.boundingLeft;
-      this.selectPos.y = range.boundingTop;
-      this.selectPos.w = range.boundingWidth;
-      this.selectPos.h = range.boundingHeight;
-    } else if (window.getSelection) {
-      sel = window.getSelection();
-      if (sel.rangeCount) {
-        range = sel.getRangeAt(0).cloneRange();
-        if (range.getClientRects) {
-          rects = range.getClientRects();
-          // return rect that encompasses all rects...
-          if (rects.length > 0) {
-            rightMax = Math.max(rects[0].right, rects[rects.length - 1].right);
-            leftMin = Math.min(rects[0].left, rects[rects.length - 1].left);
-            this.selectPos.x = leftMin;
-            this.selectPos.y = rects[0].top;
-            this.selectPos.w = rightMax - leftMin;
-            this.selectPos.h = rects[rects.length - 1].bottom - rects[0].top;
-          }
-          // Random rects return incorrect width/right data, when selecting 3 or more lines :( ...
-          // rightMax = 0;
-          // leftMin = 800000000;
-          // for (i = 0; i < rects.length; i++) {
-          //   console.log(rects[i]);
-          //   rightMax = Math.max(rightMax, rects[i].right);
-          //   leftMin = Math.min(leftMin, rects[i].left);
-          //   this.selectPos.x = leftMin;
-          //   this.selectPos.y = rects[0].top;
-          //   this.selectPos.w = rightMax - leftMin;
-          //   this.selectPos.h = rects[i].bottom - rects[0].top;
-          // }
+
+    sel = this.win.getSelection();
+    if (sel.rangeCount) {
+      range = sel.getRangeAt(0).cloneRange();
+      if (range.getClientRects) {
+        rects = range.getClientRects();
+        // return rect that encompasses all rects...
+        if (rects.length > 0) {
+          rightMax = Math.max(rects[0].right, rects[rects.length - 1].right);
+          leftMin = Math.min(rects[0].left, rects[rects.length - 1].left);
+          this.selectPos.x = leftMin;
+          this.selectPos.y = rects[0].top;
+          this.selectPos.w = rightMax - leftMin;
+          this.selectPos.h = rects[rects.length - 1].bottom - rects[0].top;
         }
+        // Random rects return incorrect width/right data, when selecting 3 or more lines :( ...
+        // rightMax = 0;
+        // leftMin = 800000000;
+        // for (i = 0; i < rects.length; i++) {
+        //   console.log(rects[i]);
+        //   rightMax = Math.max(rightMax, rects[i].right);
+        //   leftMin = Math.min(leftMin, rects[i].left);
+        //   this.selectPos.x = leftMin;
+        //   this.selectPos.y = rects[0].top;
+        //   this.selectPos.w = rightMax - leftMin;
+        //   this.selectPos.h = rects[i].bottom - rects[0].top;
+        // }
       }
     }
   }
@@ -752,49 +817,37 @@ class Selection {
 
   moveCursorToElement(element) {
     var range, selection;
-    if(document.createRange) {
-      range = document.createRange();//Create a range (a range is a like the selection but invisible)
+    if (this.doc.createRange) {
+      range = this.doc.createRange();//Create a range (a range is a like the selection but invisible)
       range.selectNodeContents(element);//Select the entire contents of the element with the range
       range.collapse(false);//collapse the range to the end point. false means collapse to end rather than the start
-      selection = window.getSelection();//get the selection object (allows you to change selection)
+      selection = this.win.getSelection();//get the selection object (allows you to change selection)
       selection.removeAllRanges();//remove any selections already made
       selection.addRange(range);//make the range you have just created the visible selection
-    } else if(document.selection) { 
-      range = document.body.createTextRange();//Create a range (a range is a like the selection but invisible)
-      range.moveToElementText(element);//Select the entire contents of the element with the range
-      range.collapse(false);//collapse the range to the end point. false means collapse to end rather than the start
-      range.select();//Select the range (make it the visible selection
     }
   }
 
   getSelectionObj() {
-    if (document.selection) {
-      return document.selection;
-    }
-    return window.getSelection();
+    return this.win.getSelection();
   }
 
   getSelectionRange(selection) {
     var range;
 
-    if (document.selection) {
-      range = selection.createRange();
+    if (selection.getRangeAt) {
+      if (selection.rangeCount > 0) {
+        range = selection.getRangeAt(0);
+      }
     } else {
-      if (selection.getRangeAt) {
-        if (selection.rangeCount > 0) {
-          range = selection.getRangeAt(0);
-        }
-      } else {
-        // Old WebKit
-        range = document.createRange();
-        range.setStart(selection.anchorNode, selection.anchorOffset);
-        range.setEnd(selection.focusNode, selection.focusOffset);
+      // Old WebKit
+      range = this.doc.createRange();
+      range.setStart(selection.anchorNode, selection.anchorOffset);
+      range.setEnd(selection.focusNode, selection.focusOffset);
 
-        // Handle the case when the selection was selected backwards (from the end to the start in the document)
-        if (range.collapsed !== selection.isCollapsed) {
-          range.setStart(selection.focusNode, selection.focusOffset);
-          range.setEnd(selection.anchorNode, selection.anchorOffset);
-        }
+      // Handle the case when the selection was selected backwards (from the end to the start in the document)
+      if (range.collapsed !== selection.isCollapsed) {
+        range.setStart(selection.focusNode, selection.focusOffset);
+        range.setEnd(selection.anchorNode, selection.anchorOffset);
       }
     }
 
@@ -806,18 +859,18 @@ class Selection {
   }
 
   getSelectionText() {
-    var sel = document.selection ? document.selection.createRange().text : window.getSelection().toString();
+    var sel = this.win.getSelection().toString();
     return sel;
   }
 
   getElementDefaultDisplay(tag) {
     var cStyle,
-        t = document.createElement(tag),
-        gcs = "getComputedStyle" in window;
+        t = this.doc.createElement(tag),
+        gcs = "getComputedStyle" in this.win;
 
-    document.body.appendChild(t);
-    cStyle = (gcs ? window.getComputedStyle(t, "") : t.currentStyle).display; 
-    document.body.removeChild(t);
+    this.doc.body.appendChild(t);
+    cStyle = (gcs ? this.win.getComputedStyle(t, "") : t.currentStyle).display; 
+    this.doc.body.removeChild(t);
 
     return cStyle;
   }
@@ -852,7 +905,7 @@ class Selection {
       }
       nodes = ancestor.getElementsByTagName("*");
     } else {
-      div = document.createElement('div');
+      div = this.doc.createElement('div');
       div.appendChild(range.cloneContents());
       nodes = div.childNodes;
       style = this.getElementDefaultDisplay(ancestor.tagName);
@@ -889,61 +942,6 @@ class Selection {
 
     return ancestorTags.concat(selectedTags);
   }
-
-  // getSharedElementParents(selection, range) {
-  //   var ancestor = range.commonAncestorContainer,
-  //       allSelected = [],
-  //       nodes,
-  //       style,
-  //       tags = [],
-  //       i,
-  //       div,
-  //       partial = false,
-  //       nodeCount = 0,
-  //       addTag = [];
-
-  //   if (ancestor.nodeType === 3) {
-  //     partial = true;
-  //     ancestor = ancestor.parentNode;
-  //     style = this.getElementDefaultDisplay(ancestor.tagName);
-  //     while (style === 'inline') {
-  //       ancestor = ancestor.parentNode;
-  //       style = this.getElementDefaultDisplay(ancestor.tagName);
-  //     }
-  //     nodes = ancestor.getElementsByTagName("*");
-  //   } else {
-  //     div = document.createElement('div');
-  //     div.appendChild(range.cloneContents());
-  //     nodes = div.childNodes;
-  //     style = this.getElementDefaultDisplay(ancestor.tagName);
-  //     addTag = (style === 'inline') ? [ancestor.tagName] : [];
-  //   }
-
-  //   for (i = 0; i < nodes.length; i++) {
-  //     if (partial) {
-  //       if (selection.containsNode(nodes[i], true) ) {
-  //         allSelected.push(nodes[i].tagName);
-  //       }
-  //     } else {
-  //       if (nodes[i].nodeType === 3) {
-  //         if (nodes[i].textContent.trim() !== '') {
-  //           allSelected = [];
-  //           break;
-  //         }
-  //       } else {
-  //         tags = this.allTagsWithinElement(nodes[i], [nodes[i].tagName]);
-  //         nodeCount++;
-  //         if (nodeCount === 1) {
-  //           allSelected = tags;
-  //         } else {
-  //           allSelected = this.arrayIntersect(allSelected, tags);
-  //         }
-  //       }
-  //     }
-  //   }
-
-  //   return allSelected.concat();
-  // }
 
   arrayIntersect(a1, a2) {
     var i, aNew = [];
@@ -983,30 +981,28 @@ class Selection {
 
   getSelectionHTML() {
     var html = "", sel, container, i, sharedElems;
-    if (typeof window.getSelection !== "undefined") {
-      sel = window.getSelection();
-      if (sel.rangeCount) {
-        container = document.createElement("div");
-        for (i = 0; i < sel.rangeCount; ++i) {
-          container.appendChild(sel.getRangeAt(i).cloneContents());
-        }
-        html = container.innerHTML;
+
+    sel = this.win.getSelection();
+    if (sel.rangeCount) {
+      container = this.doc.createElement("div");
+      for (i = 0; i < sel.rangeCount; ++i) {
+        container.appendChild(sel.getRangeAt(i).cloneContents());
       }
-    } else if (typeof document.selection !== "undefined") {
-      if (document.selection.type === "Text") {
-        html = document.selection.createRange().htmlText;
-      }
+      html = container.innerHTML;
     }
+
     if (html.length > 0 && this.currentHTML !== html) {
       this.currentHTML = html;
     }
+
     return html;
   }
 
   saveSelection(containerEl) {
     var range, preSelectionRange, start, selectedTextRange, preSelectionTextRange;
-    if (window.getSelection && document.createRange) {
-      range = window.getSelection().getRangeAt(0);
+
+    if (this.doc.createRange) {
+      range = this.win.getSelection().getRangeAt(0);
       preSelectionRange = range.cloneRange();
       preSelectionRange.selectNodeContents(containerEl);
       preSelectionRange.setEnd(range.startContainer, range.startOffset);
@@ -1016,25 +1012,17 @@ class Selection {
           start: start,
           end: start + range.toString().length
       };
-    } else if (document.selection) {
-      selectedTextRange = document.selection.createRange();
-      preSelectionTextRange = document.body.createTextRange();
-      preSelectionTextRange.moveToElementText(containerEl);
-      preSelectionTextRange.setEndPoint("EndToStart", selectedTextRange);
-      start = preSelectionTextRange.text.length;
-
-      return {
-          start: start,
-          end: start + selectedTextRange.text.length
-      };
     }
+
+    return false;
   }
 
   restoreSelection(containerEl, savedSel) {
     var charIndex, range, nodeStack, node, foundStart, stop, nextCharIndex, i, sel, textRange;
-    if (window.getSelection && document.createRange) {
+
+    if (this.doc.createRange) {
       charIndex = 0;
-      range = document.createRange();
+      range = this.doc.createRange();
       range.setStart(containerEl, 0);
       range.collapse(true);
       nodeStack = [containerEl];
@@ -1061,16 +1049,9 @@ class Selection {
           }
       }
 
-      sel = window.getSelection();
+      sel = this.win.getSelection();
       sel.removeAllRanges();
       sel.addRange(range);
-    } else if (document.selection) {
-      textRange = document.body.createTextRange();
-      textRange.moveToElementText(containerEl);
-      textRange.collapse(true);
-      textRange.moveEnd("character", savedSel.end);
-      textRange.moveStart("character", savedSel.start);
-      textRange.select();
     }
   }
 
@@ -1089,54 +1070,21 @@ class Selection {
   isSelectionInside(containerNode, force) {
     var sel, range, rangeContainer;
     // selection inside editor?
-    if (window.getSelection) {
-      sel = window.getSelection();
-      if (this.isOrContainsNode(containerNode,sel.anchorNode) && this.isOrContainsNode(containerNode,sel.focusNode)) {
-        return true;
-      }
-      // selection at least partly outside editor
-      if (!force) {
-        return false;
-      }
-      // force selection to editor
-      range = document.createRange();
-      range.selectNodeContents(containerNode);
-      range.collapse(false);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    } else if (document.selection) {
-      sel = document.selection;
-      // e.g. an image selected
-      if (sel.type === 'Control') {
-        // http://msdn.microsoft.com/en-us/library/ie/hh826021%28v=vs.85%29.aspx
-        range = sel.createRange();
-        // test only the first element
-        if (range.length !== 0 && this.isOrContainsNode(containerNode,range(0))) {
-          return true;
-        }
-      // if (sel.type === 'Text' || sel.type === 'None')
-      } else {
-        // Range of container
-        // http://stackoverflow.com/questions/12243898/how-to-select-all-text-in-contenteditable-div
-        rangeContainer = document.body.createTextRange();
-        rangeContainer.moveToElementText(containerNode);
-        // Compare with selection range
-        range = sel.createRange();
-        if (rangeContainer.inRange(range)) {
-          return true;
-        }
-      }
-      // selection at least partly outside editor
-      if (!force) {
-        return false;
-      }
-      // force selection to editor
-      // http://stackoverflow.com/questions/12243898/how-to-select-all-text-in-contenteditable-div
-      range = document.body.createTextRange();
-      range.moveToElementText(containerNode);
-      range.setEndPoint('StartToEnd',range); // collapse
-      range.select();
+    sel = this.win.getSelection();
+    if (this.isOrContainsNode(containerNode,sel.anchorNode) && this.isOrContainsNode(containerNode,sel.focusNode)) {
+      return true;
     }
+    // selection at least partly outside editor
+    if (!force) {
+      return false;
+    }
+    // force selection to editor
+    range = this.doc.createRange();
+    range.selectNodeContents(containerNode);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+
     return true;
   }
 
@@ -1157,24 +1105,19 @@ class Selection {
         range = this.getSelectionRange(sel),
         container;
     
-    if (document.selection) {
-      range.collapse(isStart);
-      return range.parentElement();
-    } else {
-      if (range) {
-        container = range[isStart ? "startContainer" : "endContainer"];
+    if (range) {
+      container = range[isStart ? "startContainer" : "endContainer"];
 
-        // Check if the container is a text node and return its parent if so
-        return container.nodeType === 3 ? container.parentNode : container;
-      }
+      // Check if the container is a text node and return its parent if so
+      return container.nodeType === 3 ? container.parentNode : container;
     }
 
     return false;
   }
 };
 
-module.exports = Selection;
-},{}],6:[function(require,module,exports){
+module.exports = SelectionModern;
+},{}],7:[function(require,module,exports){
 /*jshint -W032, esnext:true */ /* -W032 = ignore unnecessary semicolon */
 /*globals module, require*/
 var HtmlEditor = require("./js/CoreEditor");

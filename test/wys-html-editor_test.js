@@ -35,6 +35,7 @@ exports['WysHtmlEditor'] = {
         newEl = document.createElement('div'),
         options;
     
+    window.getSelection = function() {};
     document.execCommand = function() {};
     document.queryCommandSupported = function() { return true; };
     options = { 'doc': document, 'win': window, 'toolbar': ['b', 'i', 'ol'] };
@@ -326,38 +327,10 @@ exports['WysHtmlEditor'] = {
     test.done();
   },
   // execCommand
-  'exec bold called on document, in < IE9': function(test) {
-    var result,
-        rangeObj = {
-          queryCommandEnabled: function() { return true; },
-          execCommand: function() { return 'exec called'; }
-        },
-        rangeStub = sinon.stub(this.wyseditor.selection, 'getSelectionRange').returns(rangeObj);
+  'do nothing, in < IE9': function(test) {
+    var result;
     
-    // < IE9 has a document.selection function
-    this.wyseditor.options.doc.selection = function() {};
     sinon.stub(this.wyseditor.selection, 'isSelectionInside').returns(true);
-    sinon.stub(this.wyseditor.selection, 'getSelectionObj');
-    result = this.wyseditor.execCommand('bold');
-
-    test.expect(2);
-    test.ok(rangeStub.called);
-    test.equal(result, 'exec called');
-    test.done();
-  },
-  // execCommand
-  'exec bold called on document, in < IE9... queryCommandEnabled false': function(test) {
-    var result,
-        rangeObj = {
-          queryCommandEnabled: function() { return false; },
-          execCommand: function() { return 'exec called'; }
-        };
-    
-    // < IE9 has a document.selection function
-    this.wyseditor.options.doc.selection = function() {};
-    sinon.stub(this.wyseditor.selection, 'isSelectionInside').returns(true);
-    sinon.stub(this.wyseditor.selection, 'getSelectionObj');
-    sinon.stub(this.wyseditor.selection, 'getSelectionRange').returns(rangeObj);
     result = this.wyseditor.execCommand('bold');
 
     test.expect(1);
