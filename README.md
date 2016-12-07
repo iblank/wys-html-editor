@@ -7,8 +7,9 @@ A lightweight Javascript WYSIWYG editor.
 Install the module with: `npm install wys-html-editor`
 
 ```javascript
-var wys_html_editor = require('wys-html-editor');
-wys_html_editor.awesome(); // "awesome"
+var wys_html_editor = require('wys-html-editor'),
+    elem = document.getElementById('wyseditor'),
+    editor = new wys_html_editor(elem);
 ```
 
 ### In the browser
@@ -16,6 +17,9 @@ Download the [production version][min] or the [development version][max].
 
 [min]: https://raw.github.com/iblank/wys-html-editor/master/dist/wys-html-editor.min.js
 [max]: https://raw.github.com/iblank/wys-html-editor/master/dist/wys-html-editor.js
+
+Check out the current demo:
+[Sample demo](http://htmlpreview.github.io/?https://github.com/iblank/wys-html-editor/blob/develop/demo/index.html)
 
 In your web page:
 
