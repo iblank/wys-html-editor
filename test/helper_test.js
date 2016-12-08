@@ -73,6 +73,16 @@ exports['Helper'] = {
     test.deepEqual(Helper.objOverrideValues(obj1, obj2), expected);
     test.done();
   },
+  // arrayIntersect
+  'return array of intersecting values between 2 arrays': function(test) {
+    var arr1 = [1,3,5],
+        arr2 = [5,8,1],
+        expect = [1,5];
+
+    test.expect(1);
+    test.deepEqual(Helper.arrayIntersect(arr1, arr2), expect);
+    test.done();
+  },
   // hasClass
   'element has a specified class': function(test) {
     var el = {

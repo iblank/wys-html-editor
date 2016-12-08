@@ -683,6 +683,18 @@ class Helper {
     return obj1;
   }
 
+  // return array of intersecting values between 2 arrays
+  static arrayIntersect(a1, a2) {
+    var i, aNew = [];
+
+    for (i = 0; i < a1.length; i++) {
+      if (aNew.indexOf(a1[i]) === -1 && a2.indexOf(a1[i]) !== -1) {
+        aNew.push(a1[i]);
+      }
+    }
+    return aNew;
+  }
+
   // element has class name
   static hasClass(el, className) {
     var reg;
@@ -759,8 +771,10 @@ class Selection {
 module.exports = Selection;
 },{"./selectionClasses/SelectionModern":6}],6:[function(require,module,exports){
 /*jshint -W032 */ /* ignore unnecessary semicolon */
-/*globals module, console, window, document*/
+/*globals module, console, window, document, require*/
 'use strict';
+var Helper = require("../Helper");
+
 class SelectionModern {
   constructor(win, doc) {
     // pass in window and document objects, to make unit testing much easier
@@ -906,17 +920,6 @@ class SelectionModern {
     return ancestorTags.concat(selectedTags);
   }
 
-  arrayIntersect(a1, a2) {
-    var i, aNew = [];
-
-    for (i = 0; i < a1.length; i++) {
-      if (aNew.indexOf(a1[i]) === -1 && a2.indexOf(a1[i]) !== -1) {
-        aNew.push(a1[i]);
-      }
-    }
-    return aNew;
-  }
-
   allTagsWithinElement(el, tags, firstChild) {
     var i, children, childTag, newTags = [], firstTags = [], tagCount = 0;
 
@@ -942,7 +945,7 @@ class SelectionModern {
           if (tagCount === 1) {
             firstTags = newTags;
           } else {
-            firstTags = this.arrayIntersect(firstTags, newTags);
+            firstTags = Helper.arrayIntersect(firstTags, newTags);
           }
           newTags = [];
         }
@@ -1094,7 +1097,7 @@ class SelectionModern {
 };
 
 module.exports = SelectionModern;
-},{}],7:[function(require,module,exports){
+},{"../Helper":4}],7:[function(require,module,exports){
 /*jshint -W032, esnext:true */ /* -W032 = ignore unnecessary semicolon */
 /*globals module, require*/
 var HtmlEditor = require("./js/CoreEditor");
