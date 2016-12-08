@@ -834,10 +834,8 @@ class SelectionModern {
   getSelectionRange(selection) {
     var range;
 
-    if (selection.getRangeAt) {
-      if (selection.rangeCount > 0) {
-        range = selection.getRangeAt(0);
-      }
+    if (selection.getRangeAt && selection.rangeCount > 0) {
+      range = selection.getRangeAt(0);
     } else {
       // Old WebKit
       range = this.doc.createRange();
@@ -851,16 +849,11 @@ class SelectionModern {
       }
     }
 
-    if (range) {
-      // console.log(range);
-      return range;
-    }
-    return false;
+    return range;
   }
 
   getSelectionText() {
-    var sel = this.win.getSelection().toString();
-    return sel;
+    return this.win.getSelection().toString();
   }
 
   getElementDefaultDisplay(tag) {
@@ -877,65 +870,39 @@ class SelectionModern {
 
   getSelectionHierarchy(toplevel) {
     var selection = this.getSelectionObj(),
-        range,
-        ancestor,
+        range = this.getSelectionRange(selection),
+        ancestor = range.commonAncestorContainer,
         selectedTags = [],
-        nodes,
         style,
-        tags = [],
-        i,
         div,
-        partial = false,
-        nodeCount = 0,
         ancestorTags = [];
 
-    range = this.getSelectionRange(selection);
-    ancestor = range.commonAncestorContainer;
+    // for textnodes, add all inline-level parent tags
     if (ancestor.nodeType === 3) {
-      partial = true;
       ancestor = ancestor.parentNode;
       style = this.getElementDefaultDisplay(ancestor.tagName);
       while (style === 'inline') {
+        selectedTags.push(ancestor.tagName);
         ancestor = ancestor.parentNode;
         style = this.getElementDefaultDisplay(ancestor.tagName);
       }
-      nodes = ancestor.getElementsByTagName("*");
+    // for everything else, clone the html contents of the text range
+    // into a div and get all child nodes within that div
     } else {
       div = this.doc.createElement('div');
       div.appendChild(range.cloneContents());
-      nodes = div.childNodes;
-      style = this.getElementDefaultDisplay(ancestor.tagName);
+
+      selectedTags = this.allTagsWithinElement(div, [], true);
     }
 
-    // find all the common parent tags within the element
+    // collect all the ancestors within the toplevel element
     while (ancestor && ancestor !== toplevel) {
       ancestorTags.unshift(ancestor.tagName);
       ancestor = ancestor.parentNode;
     }
 
-    for (i = 0; i < nodes.length; i++) {
-      if (partial) {
-        if (selection.containsNode(nodes[i], true) ) {
-          selectedTags.push(nodes[i].tagName);
-        }
-      } else {
-        if (nodes[i].nodeType === 3) {
-          if (nodes[i].textContent.trim() !== '') {
-            selectedTags = [];
-            break;
-          }
-        } else {
-          tags = this.allTagsWithinElement(nodes[i], [nodes[i].tagName]);
-          nodeCount++;
-          if (nodeCount === 1) {
-            selectedTags = tags;
-          } else {
-            selectedTags = this.arrayIntersect(selectedTags, tags);
-          }
-        }
-      }
-    }
-
+    // if selected text is bold and in a nest list, the result would look
+    // something like this: ['ul', 'li', 'ol', 'li', 'strong']
     return ancestorTags.concat(selectedTags);
   }
 
@@ -950,8 +917,8 @@ class SelectionModern {
     return aNew;
   }
 
-  allTagsWithinElement(el, tags) {
-    var i, children, childTag, newTags = [];
+  allTagsWithinElement(el, tags, firstChild) {
+    var i, children, childTag, newTags = [], firstTags = [], tagCount = 0;
 
     children = el.childNodes;
     if (children.length === 1 && children[0].nodeType === 3) {
@@ -969,7 +936,21 @@ class SelectionModern {
           newTags.push(childTag);
           newTags = this.allTagsWithinElement(children[i], newTags);
         }
+        // on the first children we only want the tags in common...
+        if (firstChild) {
+          tagCount++;
+          if (tagCount === 1) {
+            firstTags = newTags;
+          } else {
+            firstTags = this.arrayIntersect(firstTags, newTags);
+          }
+          newTags = [];
+        }
       }
+    }
+
+    if (firstChild) {
+      return firstTags;
     }
 
     return tags.concat(newTags);

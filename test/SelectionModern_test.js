@@ -103,5 +103,64 @@ exports['SelectionModern'] = {
       test.expect(1);
       test.ok(getSelStub.calledOnce);
       test.done();
+  },
+  // getSelectionRange
+  'returns the range object when getRangeAt not available': function(test) {
+      var selObj = {
+            isCollapsed: true
+          },
+          rangeObj = {
+            setStart: function() {},
+            setEnd: function() {},
+            collapsed: false
+          },
+          startStub = sandbox.stub(rangeObj, 'setStart'),
+          endStub = sandbox.stub(rangeObj, 'setEnd');
+
+      sandbox.stub(this.selection.doc, 'createRange').returns(rangeObj);
+      this.selection.getSelectionRange(selObj);
+      test.expect(2);
+      test.ok(startStub.calledTwice);
+      test.ok(endStub.calledTwice);
+      test.done();
+  },
+  // getSelectionText
+  'returns the string value of the current selection': function(test) {
+    var selObj = {
+          toString: function() {}
+        },
+        result;
+
+    sandbox.stub(this.selection.win, 'getSelection').returns(selObj);
+    sandbox.stub(selObj, 'toString').returns('this is the string');
+    result = this.selection.getSelectionText();
+    test.expect(1);
+    test.equal(result, 'this is the string');
+    test.done();
+  },
+  // getElementDefaultDisplay
+  'returns the default display style of the given tag, when getComputedStyle not available': function(test) {
+    var result;
+
+    result = this.selection.getElementDefaultDisplay('p');
+    test.expect(1);
+    test.equal(result, 'block');
+    test.done();
+  },
+  // getElementDefaultDisplay
+  'returns the default display style of the given tag': function(test) {
+    var styleStub,
+        styleObj = {
+          display: 'inline'
+        },
+        result;
+    
+    this.selection.win.getComputedStyle = function() {};
+    styleStub = sandbox.stub(this.selection.win, 'getComputedStyle').returns(styleObj);
+    result = this.selection.getElementDefaultDisplay('em');
+    test.expect(2);
+    test.ok(styleStub.calledOnce);
+    test.equal(result, 'inline');
+    test.done();
   }
 };
