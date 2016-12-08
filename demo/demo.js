@@ -889,11 +889,7 @@ class SelectionModern {
         nodeCount = 0,
         ancestorTags = [];
 
-    // everything below depends on finding the range using getRangeAt
-    if (!selection.getRangeAt) {
-      return [];
-    }
-    range = selection.getRangeAt(0);
+    range = this.getSelectionRange(selection);
     ancestor = range.commonAncestorContainer;
     if (ancestor.nodeType === 3) {
       partial = true;
