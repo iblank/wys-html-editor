@@ -4,7 +4,7 @@ A lightweight Javascript WYSIWYG editor.
 
 ## Getting Started
 ### Try it out
-[demo](http://htmlpreview.github.io/?https://github.com/iblank/wys-html-editor/blob/develop/demo/index.html)
+[demo](https://rawgit.com/iblank/wys-html-editor/develop/demo/index.html)
 
 ### On the server
 Install the module with: `npm install wys-html-editor`
