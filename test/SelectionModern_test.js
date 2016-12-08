@@ -90,5 +90,18 @@ exports['SelectionModern'] = {
       test.expect(1);
       test.ok(getSelStub.calledOnce);
       test.done();
+  },
+  // getSelectionRange
+  'returns the range object based on the selection given': function(test) {
+      var selObj = {
+            getRangeAt: function() {},
+            rangeCount: 1
+          },
+          getSelStub = sandbox.stub(selObj, 'getRangeAt');
+
+      this.selection.getSelectionRange(selObj);
+      test.expect(1);
+      test.ok(getSelStub.calledOnce);
+      test.done();
   }
 };
