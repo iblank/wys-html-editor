@@ -8,6 +8,8 @@ var Selection = require("../lib/js/classes/selectionClasses/SelectionModern"),
 
 exports['SelectionModern'] = {
   selection: {},
+  win: {},
+  doc: {},
   setUp: function(done) {
     var mockBrow = new MockBrowser(),
         window = mockBrow.getWindow(),
@@ -15,6 +17,8 @@ exports['SelectionModern'] = {
 
     window.getSelection = function() {};
     document.createRange = function() {};
+    this.win = window;
+    this.doc = document;
     this.selection = new Selection(window, document);
     sandbox = sinon.sandbox.create();
     done();
@@ -45,7 +49,7 @@ exports['SelectionModern'] = {
         rangeStub = sandbox.spy(rangeObj, 'getClientRects'),
         rangeAtStub = sandbox.spy(selObj, 'getRangeAt');
     
-    sandbox.stub(this.selection.win, 'getSelection').returns(selObj);
+    sandbox.stub(this.win, 'getSelection').returns(selObj);
     this.selection.updateCursorPosition();
     
     test.expect(3);
@@ -75,8 +79,8 @@ exports['SelectionModern'] = {
         },
         addRangeStub = sandbox.stub(selObj, 'addRange');
 
-    sandbox.stub(this.selection.doc, 'createRange').returns(rangeObj);
-    sandbox.stub(this.selection.win, 'getSelection').returns(selObj);
+    sandbox.stub(this.doc, 'createRange').returns(rangeObj);
+    sandbox.stub(this.win, 'getSelection').returns(selObj);
     this.selection.moveCursorToElement();
     test.expect(1);
     test.ok(addRangeStub.calledOnce);
@@ -84,7 +88,7 @@ exports['SelectionModern'] = {
   },
   // getSelectionObj
   'returns the window.getSelection object': function(test) {
-      var getSelStub = sandbox.stub(this.selection.win, 'getSelection');
+      var getSelStub = sandbox.stub(this.win, 'getSelection');
 
       this.selection.getSelectionObj();
       test.expect(1);
@@ -117,7 +121,7 @@ exports['SelectionModern'] = {
           startStub = sandbox.stub(rangeObj, 'setStart'),
           endStub = sandbox.stub(rangeObj, 'setEnd');
 
-      sandbox.stub(this.selection.doc, 'createRange').returns(rangeObj);
+      sandbox.stub(this.doc, 'createRange').returns(rangeObj);
       this.selection.getSelectionRange(selObj);
       test.expect(2);
       test.ok(startStub.calledTwice);
@@ -131,7 +135,7 @@ exports['SelectionModern'] = {
         },
         result;
 
-    sandbox.stub(this.selection.win, 'getSelection').returns(selObj);
+    sandbox.stub(this.win, 'getSelection').returns(selObj);
     sandbox.stub(selObj, 'toString').returns('this is the string');
     result = this.selection.getSelectionText();
     test.expect(1);
@@ -155,12 +159,163 @@ exports['SelectionModern'] = {
         },
         result;
     
-    this.selection.win.getComputedStyle = function() {};
-    styleStub = sandbox.stub(this.selection.win, 'getComputedStyle').returns(styleObj);
+    this.win.getComputedStyle = function() {};
+    styleStub = sandbox.stub(this.win, 'getComputedStyle').returns(styleObj);
     result = this.selection.getElementDefaultDisplay('em');
     test.expect(2);
     test.ok(styleStub.calledOnce);
     test.equal(result, 'inline');
+    test.done();
+  },
+  // getSelectionHierarchy
+  'returns a tag hierarchy array, when ancestor is a textnode': function(test) {
+    var html = '<p>something <strong><em>text</em> more</strong>.</p>',
+        expect = ['P', 'STRONG', 'EM'],
+        div = this.doc.createElement('div'),
+        em,
+        textnode,
+        rangeObj = {},
+        result;
+    
+    // example mocks that the text selected is in the em tag ('text')
+    div.innerHTML = html;
+    em = div.getElementsByTagName('em')[0];
+    textnode = em.firstChild;
+    rangeObj.commonAncestorContainer = textnode;
+    sandbox.stub(this.selection, 'getSelectionObj');
+    sandbox.stub(this.selection, 'getSelectionRange').returns(rangeObj);
+
+    result = this.selection.getSelectionHierarchy(div);
+    test.expect(1);
+    test.deepEqual(result, expect);
+    test.done();
+  },
+  // getSelectionHierarchy
+  'returns a tag hierarchy array, when ancestor is NOT a textnode': function(test) {
+    var html = '<p>something <strong><em>text</em>.</strong></p><p><strong>more</strong>.</p>',
+        selectionHTML = '<p><strong><em>text</em>.</strong></p><p><strong>more</strong></p>',
+        expect = ['P', 'STRONG'],
+        div = this.doc.createElement('div'),
+        cloneDiv = this.doc.createElement('div'),
+        clone = this.doc.createDocumentFragment(),
+        children,
+        rangeObj = {
+          cloneContents: function() {}
+        },
+        result;
+    
+    // example mocks that the text selected is 'text' through 'more'
+    div.innerHTML = html;
+    // you can't create a documentFragment with innerHTML, so we have to create
+    // a div and move all it's children into the documentFragment...
+    cloneDiv.innerHTML = selectionHTML;
+    children = cloneDiv.childNodes;
+    while (cloneDiv.hasChildNodes()) {
+      clone.appendChild(cloneDiv.removeChild(cloneDiv.firstChild));
+    }
+
+    rangeObj.commonAncestorContainer = div;
+    sandbox.stub(this.selection, 'getSelectionObj');
+    sandbox.stub(this.selection, 'getSelectionRange').returns(rangeObj);
+    sandbox.stub(rangeObj, 'cloneContents').returns(clone);
+
+    result = this.selection.getSelectionHierarchy(div);
+    test.expect(1);
+    test.deepEqual(result, expect);
+    test.done();
+  },
+  // allTagsWithinElement
+  'return all the intersecting tags in firstChild nodes': function(test) {
+    var html = '<p><strong><em>text</em>.</strong></p><p><strong>more</strong></p>',
+        expect = ['P', 'STRONG'],
+        div = this.doc.createElement('div'),
+        result;
+    
+    
+    div.innerHTML = html;
+    
+    // the 3rd argument is the firstChild boolean
+    result = this.selection.allTagsWithinElement(div, [], true);
+    test.expect(1);
+    test.deepEqual(result, expect);
+    test.done();
+  },
+  // allTagsWithinElement
+  'return all the unique tags in all the child nodes': function(test) {
+    var html = '<p><strong><em>text</em>.</strong></p><p><strong>more</strong></p>',
+        expect = ['P', 'STRONG', 'EM'],
+        div = this.doc.createElement('div'),
+        result;
+    
+    
+    div.innerHTML = html;
+    
+    result = this.selection.allTagsWithinElement(div, []);
+    test.expect(1);
+    test.deepEqual(result, expect);
+    test.done();
+  },
+  // getSelectionHTML
+  'if selection does not have rangeCount return empty string': function(test) {
+    var result;
+    sandbox.stub(this.win, 'getSelection').returns({});
+    
+    result = this.selection.getSelectionHTML();
+    test.expect(1);
+    test.equal(result, '');
+    test.done();
+  },
+  // getSelectionHTML
+  'get html string from text selection': function(test) {
+    var result,
+        html = '<p>content</p>',
+        selObj = {
+          rangeCount: 4,
+          getRangeAt: function() { return { cloneContents: function() {} }; }
+        },
+        elemObj = {
+          appendChild: function() {},
+          innerHTML: html
+        },
+        appendStub = sandbox.stub(elemObj, 'appendChild');
+    
+    sandbox.stub(this.win, 'getSelection').returns(selObj);
+    sandbox.stub(this.doc, 'createElement').returns(elemObj);
+    result = this.selection.getSelectionHTML();
+    test.expect(2);
+    test.equal(appendStub.callCount, 4);
+    test.equal(result, html);
+    test.done();
+  },
+  // saveSelection
+  'save the current text selection': function(test) {
+    var rangeObj = {
+          cloneRange: function() {},
+          toString: function() {
+            return 'selection text';
+          }
+        },
+        preRangeObj = {
+          selectNodeContents: function() {},
+          setEnd: function() {},
+          toString: function() {
+            return '';
+          }
+        },
+        expect = {
+          start: 0,
+          end: 14
+        },
+        result;
+    
+    sandbox.stub(this.selection, 'getSelectionObj');
+    sandbox.stub(this.selection, 'getSelectionRange').returns(rangeObj);
+    sandbox.stub(rangeObj, 'cloneRange').returns(preRangeObj);
+    sandbox.stub(preRangeObj, 'selectNodeContents');
+    sandbox.stub(preRangeObj, 'setEnd');
+    result = this.selection.saveSelection();
+    test.expect(1);
+    test.deepEqual(result, expect);
     test.done();
   }
 };
