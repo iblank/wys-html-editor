@@ -933,22 +933,23 @@ class SelectionModern {
   }
 
   allTagsWithinElement(el, tags, firstChild) {
-    var i, children, childTag, newTags = [], childTags = [], allNewTags = [], tagCount = 0;
+    var i, children, newTags = [], childTags = [], allNewTags = [], tagCount = 0;
 
     children = el.childNodes;
     if (children.length === 1 && children[0].nodeType === 3) {
       return [];
     }
     for (i = 0; children && i < children.length; i++) {
-      // ignore all empty elements
+      // ignore all empty nodes
       if (children[i].textContent.trim() !== '') {
+        // if any child at the current level is a non-blank textnode
         if (children[i].nodeType === 3) {
           return [];
         } else {
-          childTag = children[i].tagName;
-          newTags.push(childTag); // same as [childTag]
+          newTags.push(children[i].tagName); // push the current tag name
+          // find all the child tags of the current tag
           childTags = this.allTagsWithinElement(children[i], newTags);
-          // [childTag] + all the children of that tag
+          // [current tag name] + all the child tags
           newTags = newTags.concat(childTags);
         }
         // on the first children we only want the tags in common,
