@@ -695,6 +695,18 @@ class Helper {
     return aNew;
   }
 
+  // return add new values from array2 into array1
+  static arrayAddUnique(a1, a2) {
+    var i;
+
+    for (i = 0; i < a2.length; i++) {
+      if (a1.indexOf(a2[i]) === -1) {
+        a1.push(a2[i]);
+      }
+    }
+    return a1;
+  }
+
   // element has class name
   static hasClass(el, className) {
     var reg;
@@ -894,6 +906,7 @@ class SelectionModern {
     // for textnodes, add all inline-level parent tags
     if (ancestor.nodeType === 3) {
       ancestor = ancestor.parentNode;
+      
       style = this.getElementDefaultDisplay(ancestor.tagName);
       while (style === 'inline') {
         selectedTags.push(ancestor.tagName);
@@ -905,7 +918,6 @@ class SelectionModern {
     } else {
       div = this.doc.createElement('div');
       div.appendChild(range.cloneContents());
-
       selectedTags = this.allTagsWithinElement(div, [], true);
     }
 
@@ -921,41 +933,41 @@ class SelectionModern {
   }
 
   allTagsWithinElement(el, tags, firstChild) {
-    var i, children, childTag, newTags = tags, firstTags = [], tagCount = 0;
+    var i, children, childTag, newTags = [], childTags = [], allNewTags = [], tagCount = 0;
 
     children = el.childNodes;
     if (children.length === 1 && children[0].nodeType === 3) {
-      return tags;
+      return [];
     }
     for (i = 0; children && i < children.length; i++) {
-      if (children[i].nodeType === 3) {
-        if (children[i].textContent.trim() !== '') {
-          return tags;
+      // ignore all empty elements
+      if (children[i].textContent.trim() !== '') {
+        if (children[i].nodeType === 3) {
+          return [];
+        } else {
+          childTag = children[i].tagName;
+          newTags.push(childTag); // same as [childTag]
+          childTags = this.allTagsWithinElement(children[i], newTags);
+          // [childTag] + all the children of that tag
+          newTags = newTags.concat(childTags);
         }
-      } else {
-        childTag = children[i].tagName;
-        if (newTags.indexOf(childTag) === -1) {
-          newTags.push(childTag);
-          newTags = this.allTagsWithinElement(children[i], newTags);
-        }
-        // on the first children we only want the tags in common...
+        // on the first children we only want the tags in common,
+        // otherwise we want a combination of all unique values
         if (firstChild) {
           tagCount++;
           if (tagCount === 1) {
-            firstTags = newTags;
+            allNewTags = newTags;
           } else {
-            firstTags = Helper.arrayIntersect(firstTags, newTags);
+            allNewTags = Helper.arrayIntersect(allNewTags, newTags);
           }
-          newTags = [];
+        } else {
+          allNewTags = Helper.arrayAddUnique(allNewTags, newTags);
         }
+        newTags = [];
       }
     }
 
-    if (firstChild) {
-      return firstTags;
-    }
-
-    return newTags;
+    return allNewTags;
   }
 
   getSelectionHTML() {

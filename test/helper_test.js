@@ -83,6 +83,16 @@ exports['Helper'] = {
     test.deepEqual(Helper.arrayIntersect(arr1, arr2), expect);
     test.done();
   },
+  // arrayAddUnique
+  'add unique values from the 2nd array into the 1st': function(test) {
+    var arr1 = [1,3,5],
+        arr2 = [5,8,1],
+        expect = [1,3,5,8];
+
+    test.expect(1);
+    test.deepEqual(Helper.arrayAddUnique(arr1, arr2), expect);
+    test.done();
+  },
   // hasClass
   'element has a specified class': function(test) {
     var el = {

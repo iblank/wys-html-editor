@@ -47,7 +47,7 @@ module.exports = function(grunt) {
       },
       lib: {
         files: '<%= jshint.lib.src %>',
-        tasks: ['jshint:lib', 'nodeunit', 'browserify']
+        tasks: ['jshint:lib', 'browserify', 'nodeunit']
       },
       browserify: {
         files: 'demo/demosrc.js',
@@ -67,6 +67,6 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-watch');
 
   // Default task.
-  grunt.registerTask('default', ['jshint', 'nodeunit', 'browserify']);
+  grunt.registerTask('default', ['jshint', 'browserify', 'nodeunit']);
 
 };

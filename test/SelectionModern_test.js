@@ -242,7 +242,7 @@ exports['SelectionModern'] = {
   },
   // allTagsWithinElement
   'return all the unique tags in all the child nodes': function(test) {
-    var html = '<p><strong><em>text</em>.</strong></p><p><strong>more</strong></p>',
+    var html = '<p><strong><em>text</em></strong></p><p><strong>more</strong></p>',
         expect = ['P', 'STRONG', 'EM'],
         div = this.doc.createElement('div'),
         result;
