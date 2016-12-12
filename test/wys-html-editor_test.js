@@ -38,7 +38,7 @@ exports['WysHtmlEditor'] = {
     window.getSelection = function() {};
     document.execCommand = function() {};
     document.queryCommandSupported = function() { return true; };
-    options = { 'doc': document, 'win': window, 'toolbar': ['b', 'i', 'ol'] };
+    options = { 'doc': document, 'win': window, 'toolbar': ['b', 'i', 'ol', 'indent', 'outdent'] };
 
     newEl.setAttribute('class', 'wyseditorClass');
     newEl.innerHTML = 'Inner content.';
@@ -251,7 +251,7 @@ exports['WysHtmlEditor'] = {
     sinon.stub(this.wyseditor, 'unHighlightToolbarButtons');
     this.wyseditor.highlightToolbarButtons(tags);
     test.expect(1);
-    test.ok(HelperStub.calledTwice); // strong + ol
+    test.equal(HelperStub.callCount, 4); // strong + ol + indent + outdent
     test.done();
   },
   // unHighlightToolbarButtons
@@ -260,7 +260,7 @@ exports['WysHtmlEditor'] = {
   
     this.wyseditor.unHighlightToolbarButtons();
     test.expect(1);
-    test.ok(HelperStub.calledThrice); // 3 total buttons in options above ['b', 'i', 'ol']
+    test.equal(HelperStub.callCount, 10); // removeClass called twice for 5 buttons ['b', 'i', 'ol', 'indent', 'outdent']
     test.done();
   },
   // textSelection

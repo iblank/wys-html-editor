@@ -53,7 +53,9 @@ class HtmlEditor {
       'b': ['bold', '<strong>B</strong>', 'strong'],
       'i': ['italic', '<em>I</em>', 'em'],
       'ul': ['list', '&bullet;', 'ul'],
-      'ol': ['ordered-list', '1.', 'ol']
+      'ol': ['ordered-list', '1.', 'ol'],
+      'indent': ['indent', '--&gt;', 'indent', 'special'],
+      'outdent': ['outdent', '&lt;--', 'outdent', 'special']
     };
     this.buttonObjs = {};
 
@@ -176,6 +178,10 @@ class HtmlEditor {
 
     // add the button class (ex: wys-editor-btn-strong)
     btnNode.setAttribute('class', this.options.classPrefix + 'btn-' + this.buttonMap[btn][2]);
+    // if there are additional classes...
+    if (this.buttonMap[btn][3]) {
+      Helper.addClass(btnNode, this.buttonMap[btn][3]);
+    }
     // add the button title (ex: bold)
     btnNode.title = this.buttonMap[btn][0];
     // add button html (ex: <strong>B</strong>)
@@ -212,7 +218,7 @@ class HtmlEditor {
         this.domHelper.removeEmptyDomTags(this.editor, 'strong');
         this.selection.restoreSelection(this.editor, savedSel);
         this.selText = this.selection.getSelectionHTML();
-        this.updateActiveToolbarButtons(); // highlight/unhighlight buttons
+        this.updateActiveToolbarButtons();
         break;
       case 'em':
         this.execCommand('italic');
@@ -221,13 +227,19 @@ class HtmlEditor {
         this.domHelper.removeEmptyDomTags(this.editor, 'em');
         this.selection.restoreSelection(this.editor, savedSel);
         this.selText = this.selection.getSelectionHTML();
-        this.updateActiveToolbarButtons(); // highlight/unhighlight buttons
+        this.updateActiveToolbarButtons();
         break;
       case 'ul':
         this.execCommand('insertUnorderedList');
         break;
       case 'ol':
         this.execCommand('insertOrderedList');
+        break;
+      case 'indent':
+        this.execCommand('indent');
+        break;
+      case 'outdent':
+        this.execCommand('outdent');
         break;
     }
 
@@ -278,7 +290,7 @@ class HtmlEditor {
   // matches the current tags from the selection against
   // the buttons in the toolbar
   highlightToolbarButtons(tags) {
-    var i, tag;
+    var i, tag, listShown = false;
     
     // remove active class from all the buttons
     this.unHighlightToolbarButtons();
@@ -287,6 +299,15 @@ class HtmlEditor {
       // if the tag matches a button, set it to active
       if (tag in this.buttonObjs) {
         Helper.addClass(this.buttonObjs[tag], 'active');
+      }
+      if (tag === 'li' && !listShown) {
+        if (this.buttonObjs['indent']) {
+          Helper.addClass(this.buttonObjs['indent'], 'show');
+        }
+        if (this.buttonObjs['outdent']) {
+          Helper.addClass(this.buttonObjs['outdent'], 'show');
+        }
+        listShown = true;
       }
       if (tag === 'ul' || tag === 'ol') {
         break;
@@ -299,6 +320,7 @@ class HtmlEditor {
     var i;
 
     for (i in this.buttonObjs) {
+      Helper.removeClass(this.buttonObjs[i], 'show');
       Helper.removeClass(this.buttonObjs[i], 'active');
     }
   }
