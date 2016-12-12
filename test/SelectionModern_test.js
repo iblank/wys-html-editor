@@ -292,7 +292,7 @@ exports['SelectionModern'] = {
     var rangeObj = {
           cloneRange: function() {},
           toString: function() {
-            return 'selection text';
+            return 'selection text'; // 14 characters long
           }
         },
         preRangeObj = {
@@ -316,6 +316,199 @@ exports['SelectionModern'] = {
     result = this.selection.saveSelection();
     test.expect(1);
     test.deepEqual(result, expect);
+    test.done();
+  },
+  // restoreSelection
+  'restore a saved text selection': function(test) {
+    var rangeObj = {
+          setStart: function() {},
+          setEnd: function() {},
+          collapse: function() {}
+        },
+        selObj = {
+          removeAllRanges: function() {},
+          addRange: function() {}
+        },
+        saveObj = {
+          start: 3,
+          end: 19
+        },
+        textNodes = [
+          this.doc.createTextNode('some normal text '),
+          this.doc.createTextNode('and bold'),
+          this.doc.createTextNode(' text')   
+        ],
+        strEl = this.doc.createElement('strong'),
+        div = this.doc.createElement('div'),
+        startStub = sandbox.stub(rangeObj, 'setStart'),
+        endStub = sandbox.stub(rangeObj, 'setEnd');
+    
+    strEl.appendChild(textNodes[1]);
+    div.appendChild(textNodes[0]);
+    div.appendChild(strEl);
+    div.appendChild(textNodes[2]);
+    // innerHTML = 'some normal text <strong>and bold</strong> text'
+    // selection of saveObj {3,19} = 'e normal text an'
+    sandbox.stub(this.doc, 'createRange').returns(rangeObj);
+    sandbox.stub(this.win, 'getSelection').returns(selObj);
+
+    this.selection.restoreSelection(div, saveObj);
+    test.expect(3);
+    test.ok(startStub.withArgs(div, 0).calledOnce);
+    test.ok(startStub.withArgs(textNodes[0], 3).calledOnce); // start(3): 3rd char in 1st textnode
+    test.ok(endStub.withArgs(textNodes[1], 2).calledOnce); // end(19): 2nd char in 2nd textnode
+    test.done();
+  },
+  // isOrContainsNode
+  'element does contain the node': function(test) {
+    var div = this.doc.createElement('div'),
+        html = 'some <strong>bold</strong> text',
+        strNode,
+        result;
+
+    div.innerHTML = html;
+    strNode = div.getElementsByTagName('strong')[0];
+    result = this.selection.isOrContainsNode(div, strNode);
+    test.expect(1);
+    test.ok(result);
+    test.done();
+  },
+  // isOrContainsNode
+  'element does NOT contain the node': function(test) {
+    var div = this.doc.createElement('div'),
+        html = 'some <strong>bold</strong> text',
+        emNode = this.doc.createElement('em'),
+        result;
+
+    div.innerHTML = html;
+    result = this.selection.isOrContainsNode(div, emNode);
+    test.expect(1);
+    test.ok(!result);
+    test.done();
+  },
+  // isSelectionInside
+  'selection is inside the element': function(test) {
+    var selObj = {
+          anchorNode: {},
+          focusNode: {}
+        },
+        div = this.doc.createElement('div'),
+        result;
+
+    sandbox.stub(this.win, 'getSelection').returns(selObj);
+    sandbox.stub(this.selection, 'isOrContainsNode').returns(true);
+    result = this.selection.isSelectionInside(div);
+    test.expect(1);
+    test.ok(result);
+    test.done();
+  },
+  // isSelectionInside
+  'selection is at least partially outside the element': function(test) {
+    var selObj = {
+          anchorNode: {},
+          focusNode: {}
+        },
+        div = this.doc.createElement('div'),
+        result;
+
+    sandbox.stub(this.win, 'getSelection').returns(selObj);
+    sandbox.stub(this.selection, 'isOrContainsNode').returns(false);
+    result = this.selection.isSelectionInside(div);
+    test.expect(1);
+    test.ok(!result);
+    test.done();
+  },
+  // isSelectionInside
+  'selection is at least partially outside the element, but force selection inside': function(test) {
+    var rangeObj = {
+          selectNodeContents: function() {},
+          collapse: function() {}
+        },
+        selObj = {
+          removeAllRanges: function() {},
+          addRange: function() {}
+        },
+        div = this.doc.createElement('div'),
+        result,
+        addRangeStub = sandbox.stub(selObj, 'addRange');
+
+    sandbox.stub(this.win, 'getSelection').returns(selObj);
+    sandbox.stub(this.selection, 'isOrContainsNode').returns(false);
+    sandbox.stub(this.doc, 'createRange').returns(rangeObj);
+    result = this.selection.isSelectionInside(div, true);
+    test.expect(2);
+    test.ok(result);
+    test.ok(addRangeStub.calledOnce);
+    test.done();
+  },
+  // getBaseChildSelectionElement
+  'the child is not in the container, so container is returned': function(test) {
+    var div = this.doc.createElement('div'),
+        p = this.doc.createElement('p'),
+        result;
+
+    sandbox.stub(this.selection, 'getSelectionElement').returns(p);
+    result = this.selection.getBaseChildSelectionElement(true, div);
+    test.expect(1);
+    test.equal(result, div);
+    test.done();
+  },
+  // getBaseChildSelectionElement
+  'find the base child ancestor of the current element': function(test) {
+    var div = this.doc.createElement('div'),
+        html = '<p>some text <strong><em>here</em></strong>.</p>',
+        em, p,
+        result;
+
+    div.innerHTML = html;
+    em = div.getElementsByTagName('em')[0];
+    p = div.getElementsByTagName('p')[0];
+    sandbox.stub(this.selection, 'getSelectionElement').returns(em);
+    result = this.selection.getBaseChildSelectionElement(true, div);
+    test.expect(1);
+    test.equal(result, p);
+    test.done();
+  },
+  // getSelectionElement
+  'get the element for the current selection (start of selection)': function(test) {
+    var startNode = this.doc.createElement('p'),
+        endNode = this.doc.createElement('blockquote'),
+        rangeObj = {
+          'startContainer': startNode,
+          'endContainer': endNode
+        },
+        result;
+
+    sandbox.stub(this.selection, 'getSelectionRange').returns(rangeObj);
+    result = this.selection.getSelectionElement(true);
+    test.expect(1);
+    test.equal(result, startNode);
+    test.done();
+  },
+  // getSelectionElement
+  'get the element for the current selection (end of selection)': function(test) {
+    var startNode = this.doc.createElement('p'),
+        endNode = this.doc.createElement('blockquote'),
+        rangeObj = {
+          'startContainer': startNode,
+          'endContainer': endNode
+        },
+        result;
+
+    sandbox.stub(this.selection, 'getSelectionRange').returns(rangeObj);
+    result = this.selection.getSelectionElement();
+    test.expect(1);
+    test.equal(result, endNode);
+    test.done();
+  },
+  // getSelectionElement
+  'returns false when range not found': function(test) {
+    var result;
+
+    sandbox.stub(this.selection, 'getSelectionRange').returns(false);
+    result = this.selection.getSelectionElement();
+    test.expect(1);
+    test.equal(result, false);
     test.done();
   }
 };

@@ -1012,11 +1012,16 @@ class SelectionModern {
     return html;
   }
 
+  // saves the character offsets of the string version of the range (start/end)
+  // NOTE: if the text content changes between save and restore, a text adjustment
+  // would need to be accounted for (+/- the text.length that was added/subtracted)
   saveSelection(containerEl) {
     var sel, range, preSelectionRange, start;
 
     sel = this.getSelectionObj();
     range = this.getSelectionRange(sel);
+    // preSelectionRange is the range from the start of the container to
+    // the current range
     preSelectionRange = range.cloneRange();
     preSelectionRange.selectNodeContents(containerEl);
     preSelectionRange.setEnd(range.startContainer, range.startOffset);
@@ -1033,31 +1038,36 @@ class SelectionModern {
 
     if (this.doc.createRange) {
       charIndex = 0;
+      // create a range for the entire container
       range = this.doc.createRange();
       range.setStart(containerEl, 0);
       range.collapse(true);
+      // start the nodeStack with the top level container
       nodeStack = [containerEl];
       foundStart = false;
       stop = false;
 
+      // loop deeper until each textnode is found and checked in order, 
+      // until it reaches the textnodes with the start and end character offsets
+      // this ensures correct text is selected, regardless of the tags surrounding it
       while (!stop && (node = nodeStack.pop())) {
-          if (node.nodeType === 3) {
-              nextCharIndex = charIndex + node.length;
-              if (!foundStart && savedSel.start >= charIndex && savedSel.start <= nextCharIndex) {
-                  range.setStart(node, savedSel.start - charIndex);
-                  foundStart = true;
-              }
-              if (foundStart && savedSel.end >= charIndex && savedSel.end <= nextCharIndex) {
-                  range.setEnd(node, savedSel.end - charIndex);
-                  stop = true;
-              }
-              charIndex = nextCharIndex;
-          } else {
-              i = node.childNodes.length;
-              while (i--) {
-                  nodeStack.push(node.childNodes[i]);
-              }
+        if (node.nodeType === 3) {
+          nextCharIndex = charIndex + node.length;
+          if (!foundStart && savedSel.start >= charIndex && savedSel.start <= nextCharIndex) {
+            range.setStart(node, savedSel.start - charIndex);
+            foundStart = true;
           }
+          if (foundStart && savedSel.end >= charIndex && savedSel.end <= nextCharIndex) {
+            range.setEnd(node, savedSel.end - charIndex);
+            stop = true;
+          }
+          charIndex = nextCharIndex;
+        } else {
+          i = node.childNodes.length;
+          while (i--) {
+            nodeStack.push(node.childNodes[i]);
+          }
+        }
       }
 
       sel = this.win.getSelection();
@@ -1108,6 +1118,8 @@ class SelectionModern {
       }
       selEl = selEl.parentNode;
     }
+
+    return container;
   }
 
   // get the parent element of the current selection
