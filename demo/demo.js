@@ -254,10 +254,11 @@ class HtmlEditor {
 
   // positions the toolbar centered over the current text selection
   setToolbarPos(dims) {
-    var tb_width = this.toolbar.offsetWidth,
+    var scrollPos = this.options.win.pageYOffset,
+        tb_width = this.toolbar.offsetWidth,
         tb_height = this.toolbar.offsetHeight + 8,
-        top = dims.y - tb_height,
-        left = dims.x + (dims.w / 2) - (tb_width / 2);
+        top = Math.round(dims.y - tb_height),
+        left = Math.round(dims.x + (dims.w / 2) - (tb_width / 2));
 
     // TODO: this will be useful for the widget button later...
     // if (this.domHelper.isEmptyPara(this.selection.selectElem)) {
@@ -271,11 +272,14 @@ class HtmlEditor {
     }
     // keep toolbar from overflowing top of screen
     if (top < 0) {
-      top = 0;
+      top = Math.round(dims.y + dims.h + 8);
+      Helper.addClass(this.toolbar, 'below');
+    } else {
+      Helper.removeClass(this.toolbar, 'below');
     }
 
     // apply the position
-    this.toolbar.style.top = top+'px';
+    this.toolbar.style.top = (scrollPos + top)+'px';
     this.toolbar.style.left = left+'px';
   }
 
@@ -416,6 +420,11 @@ class HtmlEditor {
     }
   }
 
+  // returns the editor element
+  getElement() {
+    return this.editor;
+  }
+
   // gets a html string, cleans the html, and sets it as the new editor value
   setContent(html) {
     var div = this.options.doc.createElement('div'),
@@ -429,11 +438,6 @@ class HtmlEditor {
     }
 
     this.editor.innerHTML = cleanedHTML;
-  }
-
-  // returns the editor element
-  getElement() {
-    return this.editor;
   }
 
   // returns the value of the WYSIWYG

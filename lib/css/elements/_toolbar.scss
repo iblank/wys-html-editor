@@ -1,0 +1,62 @@
+.wys-html-editor-toolbar {
+  position: absolute;
+  min-width: 40px;
+  min-height: 20px;
+  display: none;
+
+  &::after {
+    border-color: #333 rgba(0, 0, 0, 0);
+    border-style: solid;
+    border-width: 8px 8px 0;
+    bottom: -8px;
+    content: "";
+    display: block;
+    left: 50%;
+    margin-left: -8px;
+    position: absolute;
+  }
+  &.below::after {
+    bottom: auto;
+    top: -8px;
+    border-width: 0 8px 8px;
+  }
+  ul {
+    border-radius: 10px;
+    box-shadow: 0 2px 4px #aaaaaa;
+    list-style-type: none;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+
+    li {
+      float: left;
+
+      button {
+        height: 40px;
+        width: 40px;
+        border: 1px solid #999;
+        border-width: 0 1px 0 0;
+        background-color: #333;
+        color: #eee;
+
+        &:active,
+        &:focus {
+          background-color: #555;
+        }
+        &.active {
+          background-color: #444777;
+        }
+        &.special {
+          display: none;
+        }
+        &.special.show {
+          display: block;
+        }
+      }
+
+      &:last-child button {
+        border-width: 0;
+      }
+    }
+  }
+}

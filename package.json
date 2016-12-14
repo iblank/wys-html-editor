@@ -32,6 +32,7 @@
     "grunt-browserify": "^5.0.0",
     "grunt-contrib-jshint": "^0.6.5",
     "grunt-contrib-nodeunit": "^1.0.0",
+    "grunt-contrib-sass": "^1.0.0",
     "grunt-contrib-watch": "~0.4.0",
     "mock-browser": "^0.92.12",
     "sinon": "^1.17.6"
