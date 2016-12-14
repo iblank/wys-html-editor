@@ -20,6 +20,13 @@ module.exports = function(grunt) {
         dest: 'demo/demo.js'
       }
     },
+    sass: {
+      dist: {
+        files: {
+          'lib/css/main.css': 'lib/css/main.scss'
+        }
+      }
+    },
     nodeunit: {
       files: ['test/**/*_test.js']
     },
@@ -49,6 +56,10 @@ module.exports = function(grunt) {
         files: '<%= jshint.lib.src %>',
         tasks: ['jshint:lib', 'browserify', 'nodeunit']
       },
+      sass: {
+        files: 'lib/css/**/*/*.scss',
+        tasks: ['sass']
+      },
       browserify: {
         files: 'demo/demosrc.js',
         tasks: ['browserify']
@@ -63,10 +74,11 @@ module.exports = function(grunt) {
   // These plugins provide necessary tasks.
   grunt.loadNpmTasks('grunt-browserify'); // only needed for the demo
   grunt.loadNpmTasks('grunt-contrib-nodeunit');
+  grunt.loadNpmTasks('grunt-contrib-sass');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-watch');
 
   // Default task.
-  grunt.registerTask('default', ['jshint', 'browserify', 'nodeunit']);
+  grunt.registerTask('default', ['jshint', 'browserify', 'sass', 'nodeunit']);
 
 };

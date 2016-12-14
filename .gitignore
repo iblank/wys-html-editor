@@ -2,3 +2,4 @@
 /lib/ts/
 /.vscode/
 .DS_Store
+/.sass-cache/

@@ -2,9 +2,10 @@
 'use strict';
 
 var wys_html_editor = require('../lib/wys-html-editor'),
-  Helper = require("../lib/js/classes/Helper"),
-  MockBrowser = require('mock-browser').mocks.MockBrowser,
-  sinon = require("sinon");
+    Helper = require("../lib/js/classes/Helper"),
+    MockBrowser = require('mock-browser').mocks.MockBrowser,
+    sinon = require("sinon"),
+    sandbox;
 
 /*
   ======== A Handy Little Nodeunit Reference ========
@@ -49,20 +50,23 @@ exports['WysHtmlEditor'] = {
     newEl.setAttribute('class', 'wyseditorClass');
     newEl.innerHTML = 'Inner content.';
     this.wyseditor = new wys_html_editor(newEl, options);
+    sandbox = sinon.sandbox.create();
     // setup here
+    done();
+  },
+  tearDown: function(done) {
+    sandbox.restore();
     done();
   },
   // init
   'init empty editor': function (test) {
     var mockBrow = new MockBrowser(),
-      document = mockBrow.getDocument(),
-      newEl = document.createElement('div'),
-      options = {
-        'doc': document
-      },
-      wyseditor1,
-      eventSpy = sinon.spy(document, 'createEvent');
-
+        document = mockBrow.getDocument(),
+        newEl = document.createElement('div'),
+        options = { 'doc': document },
+        wyseditor1,
+        eventSpy = sandbox.spy(document, 'createEvent');
+    
     newEl.setAttribute('class', 'wyseditorClass');
     wyseditor1 = new wys_html_editor(newEl, options);
 
@@ -81,33 +85,25 @@ exports['WysHtmlEditor'] = {
     test.done();
   },
   // addEventListeners
-  'addEventListeners are added': function (test) {
-    var editstub = sinon.stub(this.wyseditor.editor, 'addEventListener'),
-      toolstub = sinon.stub(this.wyseditor.toolbar.bar, 'addEventListener');
-
+  'addEventListeners are added': function(test) {
+    var editstub = sandbox.stub(this.wyseditor.editor, 'addEventListener'),
+        toolstub = sandbox.stub(this.wyseditor.toolbar.bar, 'addEventListener');
+    
     this.wyseditor.addEventListeners();
     test.expect(2);
     test.ok(editstub.callCount, 4);
     test.ok(toolstub.callCount, 2);
     test.done();
   },
-  // createToolbarButtons
-  'create toolbar buttons': function (test) {
-    var result = this.wyseditor.toolbar.createToolbarButtons(),
-      btns = result.getElementsByTagName('button')[0];
-    test.expect(1);
-    test.equal(btns.className, 'wys-editor-btn-strong');
-    test.done();
-  },
-  // notify: bold
-  'bold button clicked': function (test) {
-    var execStub = sinon.mock(this.wyseditor).expects('execCommand'),
-      saveSelStub = sinon.stub(this.wyseditor.selection, 'saveSelection').returns(false),
-      restoreSelStub = sinon.stub(this.wyseditor.selection, 'restoreSelection'),
-      updateBtnsStub = sinon.stub(this.wyseditor, 'updateActiveToolbarButtons'),
-      prefixClass = this.wyseditor.options.classPrefix + 'btn-strong';
+  // toolbarButtonClick: bold
+  'bold button clicked': function(test) {
+    var execStub = sandbox.mock(this.wyseditor).expects('execCommand'),
+        saveSelStub = sandbox.stub(this.wyseditor.selection, 'saveSelection').returns(false),
+        restoreSelStub = sandbox.stub(this.wyseditor.selection, 'restoreSelection'),
+        updateBtnsStub = sandbox.stub(this.wyseditor, 'updateActiveToolbarButtons'),
+        prefixClass = this.wyseditor.options.classPrefix + 'btn-strong';
 
-    sinon.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
+    sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
     this.wyseditor.notify(prefixClass);
     test.expect(4);
     test.ok(saveSelStub.calledOnce);
@@ -116,15 +112,15 @@ exports['WysHtmlEditor'] = {
     test.ok(execStub.withArgs('bold'));
     test.done();
   },
-  // notify: italic
-  'italic button clicked': function (test) {
-    var execStub = sinon.mock(this.wyseditor).expects('execCommand'),
-      saveSelStub = sinon.stub(this.wyseditor.selection, 'saveSelection').returns(false),
-      restoreSelStub = sinon.stub(this.wyseditor.selection, 'restoreSelection'),
-      updateBtnsStub = sinon.stub(this.wyseditor, 'updateActiveToolbarButtons'),
-      prefixClass = this.wyseditor.options.classPrefix + 'btn-em';
+  // toolbarButtonClick: italic
+  'italic button clicked': function(test) {
+    var execStub = sandbox.mock(this.wyseditor).expects('execCommand'),
+        saveSelStub = sandbox.stub(this.wyseditor.selection, 'saveSelection').returns(false),
+        restoreSelStub = sandbox.stub(this.wyseditor.selection, 'restoreSelection'),
+        updateBtnsStub = sandbox.stub(this.wyseditor, 'updateActiveToolbarButtons'),
+        prefixClass = this.wyseditor.options.classPrefix + 'btn-em';
 
-    sinon.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
+    sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
     this.wyseditor.notify(prefixClass);
     test.expect(4);
     test.ok(saveSelStub.calledOnce);
@@ -133,20 +129,20 @@ exports['WysHtmlEditor'] = {
     test.ok(execStub.withArgs('italic'));
     test.done();
   },
-  // notify: ul
-  'unordered-list button clicked': function (test) {
-    var execStub = sinon.mock(this.wyseditor).expects('execCommand'),
-      prefixClass = this.wyseditor.options.classPrefix + 'btn-ul';
+  // toolbarButtonClick: ul
+  'unordered-list button clicked': function(test) {
+    var execStub = sandbox.mock(this.wyseditor).expects('execCommand'),
+        prefixClass = this.wyseditor.options.classPrefix + 'btn-ul';
 
     this.wyseditor.notify(prefixClass);
     test.expect(1);
     test.ok(execStub.withArgs('insertUnorderedList'));
     test.done();
   },
-  // notify: ol
-  'ordered-list button clicked': function (test) {
-    var execStub = sinon.mock(this.wyseditor).expects('execCommand'),
-      prefixClass = this.wyseditor.options.classPrefix + 'btn-ol';
+  // toolbarButtonClick: ol
+  'ordered-list button clicked': function(test) {
+    var execStub = sandbox.mock(this.wyseditor).expects('execCommand'),
+        prefixClass = this.wyseditor.options.classPrefix + 'btn-ol';
 
     this.wyseditor.notify(prefixClass);
     test.expect(1);
@@ -177,11 +173,12 @@ exports['WysHtmlEditor'] = {
   'set the toolbar position based on the selection': function (test) {
     // mock dimensions of the current selection...
     var dims = {
-      x: 30,
-      y: 35,
-      w: 40,
-      h: 45
-    };
+          x: 30,
+          y: 35,
+          w: 40,
+          h: 45
+        },
+        helperSpy = sandbox.spy(Helper, 'removeClass');
     // mock the current toolbar offsets
     this.wyseditor.toolbar.bar.offsetWidth = 50;
     this.wyseditor.toolbar.bar.offsetHeight = 20;
@@ -190,7 +187,8 @@ exports['WysHtmlEditor'] = {
     // top: 35 - 20 + 8 (height of down arrow on toolbar) = 7px
 
     this.wyseditor.setToolbarPos(dims);
-    test.expect(2);
+    test.expect(3);
+    test.ok(helperSpy.calledOnce);
     test.equal(this.wyseditor.toolbar.bar.style.left, '25px');
     test.equal(this.wyseditor.toolbar.bar.style.top, '7px');
     test.done();
@@ -199,30 +197,33 @@ exports['WysHtmlEditor'] = {
   'set the toolbar position based on the selection, and adjust when close to screen edge': function (test) {
     // mock dimensions of the current selection...
     var dims = {
-      x: 10,
-      y: 5,
-      w: 40,
-      h: 45
-    };
+          x: 10,
+          y: 5,
+          w: 40,
+          h: 45
+        },
+        helperSpy = sandbox.spy(Helper, 'addClass');
     // mock the current toolbar offsets
     this.wyseditor.toolbar.bar.offsetWidth = 80;
     this.wyseditor.toolbar.bar.offsetHeight = 20;
     // Math involved:
     // left: 10 + (40 / 2) - (80 / 2) = -10px
     // top: 5 - 20 + 8 (height of down arrow on toolbar) = -7px
+    // (since -7 < 0) top: 0 + 5 + 45 + 8
 
     this.wyseditor.setToolbarPos(dims);
-    test.expect(2);
+    test.expect(3);
+    test.ok(helperSpy.calledOnce);
     test.equal(this.wyseditor.toolbar.bar.style.left, '0px');
-    test.equal(this.wyseditor.toolbar.bar.style.top, '0px');
+    test.equal(this.wyseditor.toolbar.bar.style.top, '58px');
     test.done();
   },
   // updateActiveToolbarButtons
   'get current hierarchy of DOM selection and call highlight function': function (test) {
     var returnTags = ['p', 'em'],
-      highlightSpy = sinon.stub(this.wyseditor, 'highlightToolbarButtons');
-
-    sinon.stub(this.wyseditor.selection, 'getSelectionHierarchy').returns(returnTags);
+        highlightSpy = sandbox.stub(this.wyseditor, 'highlightToolbarButtons');
+  
+    sandbox.stub(this.wyseditor.selection, 'getSelectionHierarchy').returns(returnTags);
     this.wyseditor.updateActiveToolbarButtons();
     test.expect(1);
     test.ok(highlightSpy.calledWith(returnTags));
@@ -231,38 +232,38 @@ exports['WysHtmlEditor'] = {
   // highlightToolbarButtons
   'highlight buttons based on tags given': function (test) {
     var tags = ['div', 'ul', 'li', 'ol', 'li', 'strong'],
-      HelperStub = sinon.stub(Helper, 'addClass');
-
-    sinon.stub(this.wyseditor, 'unHighlightToolbarButtons');
+        HelperStub = sandbox.stub(Helper, 'addClass');
+  
+    sandbox.stub(this.wyseditor, 'unHighlightToolbarButtons');
     this.wyseditor.highlightToolbarButtons(tags);
     test.expect(1);
     test.equal(HelperStub.callCount, 4); // strong + ol + indent + outdent
     test.done();
   },
   // unHighlightToolbarButtons
-  'unhighlight buttons': function (test) {
-    var HelperStub = sinon.stub(Helper, 'removeClass');
-
+  'unhighlight buttons': function(test) {
+    var HelperStub = sandbox.stub(Helper, 'removeClass');
+  
     this.wyseditor.unHighlightToolbarButtons();
     test.expect(1);
     test.equal(HelperStub.callCount, 10); // removeClass called twice for 5 buttons ['b', 'i', 'ol', 'indent', 'outdent']
     test.done();
   },
   // textSelection
-  'text selection returns string': function (test) {
+  'text selection returns string': function(test) {
     this.wyseditor.toolbar.bar.style.display = 'none';
-    sinon.stub(this.wyseditor.selection, 'getSelectionHTML').returns('<strong>text</strong>');
-    sinon.stub(this.wyseditor, 'updateActiveToolbarButtons');
-    sinon.stub(this.wyseditor, 'setToolbarPos');
+    sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('<strong>text</strong>');
+    sandbox.stub(this.wyseditor, 'updateActiveToolbarButtons');
+    sandbox.stub(this.wyseditor, 'setToolbarPos');
     this.wyseditor.textSelection();
     test.expect(1);
     test.equal(this.wyseditor.toolbar.bar.style.display, 'block');
     test.done();
   },
   // textSelection
-  'text selection returns empty string': function (test) {
+  'text selection returns empty string': function(test) {
     this.wyseditor.toolbar.bar.style.display = 'block';
-    sinon.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
+    sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
     this.wyseditor.textSelection();
     test.expect(1);
     test.equal(this.wyseditor.toolbar.bar.style.display, 'none');
@@ -274,7 +275,7 @@ exports['WysHtmlEditor'] = {
         which: 38, // ARROWUP key
         shiftKey: true
       },
-      textSelectStub = sinon.stub(this.wyseditor, 'textSelection');
+      textSelectStub = sandbox.stub(this.wyseditor, 'textSelection');
 
     this.wyseditor.checkKeyUp(eventObj);
     test.expect(1);
@@ -287,7 +288,7 @@ exports['WysHtmlEditor'] = {
         which: 38, // ARROWUP key
         shiftKey: false
       },
-      textSelectStub = sinon.stub(this.wyseditor, 'textSelection');
+      textSelectStub = sandbox.stub(this.wyseditor, 'textSelection');
 
     this.wyseditor.checkKeyUp(eventObj);
     test.expect(1);
@@ -295,8 +296,8 @@ exports['WysHtmlEditor'] = {
     test.done();
   },
   // updateValue
-  'updates value and dispatches custom event': function (test) {
-    var dispatchStub = sinon.stub(this.wyseditor.parentElem, 'dispatchEvent');
+  'updates value and dispatches custom event': function(test) {
+    var dispatchStub = sandbox.stub(this.wyseditor.parentElem, 'dispatchEvent');
 
     this.wyseditor.updateValue();
     test.expect(1);
@@ -304,9 +305,9 @@ exports['WysHtmlEditor'] = {
     test.done();
   },
   // execCommand
-  'exec called when selection outside of editor': function (test) {
-    sinon.stub(this.wyseditor.selection, 'isSelectionInside').returns(false);
-
+  'exec called when selection outside of editor': function(test) {
+    sandbox.stub(this.wyseditor.selection, 'isSelectionInside').returns(false);
+    
     test.expect(1);
     test.ok(!this.wyseditor.execCommand('bold'));
     test.done();
@@ -314,8 +315,8 @@ exports['WysHtmlEditor'] = {
   // execCommand
   'do nothing, in < IE9': function (test) {
     var result;
-
-    sinon.stub(this.wyseditor.selection, 'isSelectionInside').returns(true);
+    
+    sandbox.stub(this.wyseditor.selection, 'isSelectionInside').returns(true);
     result = this.wyseditor.execCommand('bold');
 
     test.expect(1);
@@ -325,12 +326,12 @@ exports['WysHtmlEditor'] = {
   // execCommand
   'exec bold called on document, in modern browsers': function (test) {
     var result,
-      execStub = sinon.stub(this.wyseditor.options.doc, 'execCommand').returns('exec called');
-
+        execStub = sandbox.stub(this.wyseditor.options.doc, 'execCommand').returns('exec called');
+    
     // modern browsers has a window.getSelection function
-    this.wyseditor.options.win.getSelection = function () {};
-    sinon.stub(this.wyseditor.selection, 'isSelectionInside').returns(true);
-    sinon.stub(this.wyseditor.options.doc, 'queryCommandSupported').returns(true);
+    this.wyseditor.options.win.getSelection = function() {};
+    sandbox.stub(this.wyseditor.selection, 'isSelectionInside').returns(true);
+    sandbox.stub(this.wyseditor.options.doc, 'queryCommandSupported').returns(true);
     result = this.wyseditor.execCommand('bold');
 
     test.expect(2);
@@ -343,9 +344,9 @@ exports['WysHtmlEditor'] = {
     var result;
 
     // modern browsers has a window.getSelection function
-    this.wyseditor.options.win.getSelection = function () {};
-    sinon.stub(this.wyseditor.selection, 'isSelectionInside').returns(true);
-    sinon.stub(this.wyseditor.options.doc, 'queryCommandSupported').returns(false);
+    this.wyseditor.options.win.getSelection = function() {};
+    sandbox.stub(this.wyseditor.selection, 'isSelectionInside').returns(true);
+    sandbox.stub(this.wyseditor.options.doc, 'queryCommandSupported').returns(false);
     result = this.wyseditor.execCommand('bold');
 
     test.expect(1);
@@ -357,10 +358,10 @@ exports['WysHtmlEditor'] = {
     var eventObj = {
         which: 38, // ARROWUP key
         shiftKey: false,
-        preventDefault: function () {}
-      },
-      preventStub = sinon.stub(eventObj, 'preventDefault');
-
+        preventDefault: function() {}
+      }, 
+      preventStub = sandbox.stub(eventObj, 'preventDefault');
+    
     test.expect(1);
     test.ok(!preventStub.calledOnce); // not called
     test.done();
@@ -372,7 +373,7 @@ exports['WysHtmlEditor'] = {
         shiftKey: true,
         preventDefault: function () {}
       },
-      preventStub = sinon.stub(eventObj, 'preventDefault');
+      preventStub = sandbox.stub(eventObj, 'preventDefault');
 
     this.wyseditor.checkKeyDown(eventObj);
     test.expect(1);
@@ -389,10 +390,10 @@ exports['WysHtmlEditor'] = {
       elemObj = {
         nextElementSibling: {}
       },
-      preventStub = sinon.stub(eventObj, 'preventDefault');
+      preventStub = sandbox.stub(eventObj, 'preventDefault');
 
-    sinon.stub(this.wyseditor.selection, 'getBaseChildSelectionElement').returns(elemObj);
-    sinon.stub(this.wyseditor.domHelper, 'isEmptyPara').returns(true);
+    sandbox.stub(this.wyseditor.selection, 'getBaseChildSelectionElement').returns(elemObj);
+    sandbox.stub(this.wyseditor.domHelper, 'isEmptyPara').returns(true);
     this.wyseditor.checkKeyDown(eventObj);
     test.expect(1);
     test.ok(preventStub.calledOnce);
@@ -408,10 +409,10 @@ exports['WysHtmlEditor'] = {
       elemObj = {
         nextElementSibling: {}
       },
-      isEmptyStub = sinon.stub(this.wyseditor.domHelper, 'isEmptyPara'),
-      removeStub = sinon.stub(this.wyseditor.editor, 'removeChild');
+      isEmptyStub = sandbox.stub(this.wyseditor.domHelper, 'isEmptyPara'),
+      removeStub = sandbox.stub(this.wyseditor.editor, 'removeChild');
 
-    sinon.stub(this.wyseditor.selection, 'getBaseChildSelectionElement').returns(elemObj);
+    sandbox.stub(this.wyseditor.selection, 'getBaseChildSelectionElement').returns(elemObj);
     isEmptyStub.withArgs(elemObj).returns(false);
     isEmptyStub.withArgs(elemObj.nextElementSibling).returns(true);
     this.wyseditor.checkKeyDown(eventObj);
@@ -423,6 +424,32 @@ exports['WysHtmlEditor'] = {
   'returns the editor element': function (test) {
     test.expect(1);
     test.equal(this.wyseditor.getElement(), this.wyseditor.editor);
+    test.done();
+  },
+  // setValue
+  'sets the editor innerHTML value with blank string': function(test) {
+    var html = '  ',
+        expect = '<p><br></p>',
+        result;
+
+    this.wyseditor.setContent(html);
+
+    result = this.wyseditor.getValue();
+    test.expect(1);
+    test.equal(result, expect);
+    test.done();
+  },
+  // setValue
+  'sets the editor innerHTML value': function(test) {
+    var html = 'something <strong>bold</strong> here.',
+        expect = '<p>something <strong>bold</strong> here.</p>',
+        result;
+
+    this.wyseditor.setContent(html);
+
+    result = this.wyseditor.getValue();
+    test.expect(1);
+    test.equal(result, expect);
     test.done();
   },
   // getValue
