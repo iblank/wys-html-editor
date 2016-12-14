@@ -37,6 +37,7 @@ class HtmlEditor {
     // initialize the parent element, selection and options
     this.parentElem = e;
     this.options = Helper.objOverrideValues(defaults, o);
+   
     this.selection = Selections.createNew(this.options.win, this.options.doc);
     this.domHelper = new DOMHelper(this.options.doc);
 
@@ -71,7 +72,7 @@ class HtmlEditor {
       'ARROWLEFT': 37,
       'ARROWRIGHT': 39
     };
-
+     
     this.editor = this.createEditor();
 
     this.toolbar = Toolbar.createInstance(this.options);
@@ -834,11 +835,11 @@ class ToolbarButton extends ToolbarButtonObservable {
     static create(btn, options) {
         var button = new ToolbarButton(),
             context = this;
-
+       
         button.li = options['doc'].createElement('li');
         button.btnNode = options['doc'].createElement('button');
-
         // add the button class (ex: wys-editor-btn-strong)
+        //console.log(options);
         button.btnNode.setAttribute('class', options.classPrefix + 'btn-' + button.buttonMap[btn][2]);
         // if there are additional classes...
         if (button.buttonMap[btn][3]) {
