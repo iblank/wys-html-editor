@@ -69,16 +69,15 @@ class HtmlEditor {
       'ARROWLEFT': 37,
       'ARROWRIGHT': 39
     };
-
+    // create the new editor and toolbar elements
     this.editor = this.createEditor();
     this.toolbar = this.createToolbar();
-    if (this.parentElem.innerHTML === '') {
-      this.editor.innerHTML = '<p><br></p>';
-    } else {
-      cleanedHTML = this.domHelper.cleanHTML(this.parentElem);
-      this.editor.innerHTML = cleanedHTML;
-    }
+
+    // transfer the parent contents to the editor
+    this.setContent(this.parentElem.innerHTML);
     this.parentElem.innerHTML = '';
+
+    // attach the editor and toolbar elements
     this.parentElem.appendChild(this.editor);
     this.parentElem.appendChild(this.toolbar);
 
@@ -417,6 +416,21 @@ class HtmlEditor {
     }
   }
 
+  // gets a html string, cleans the html, and sets it as the new editor value
+  setContent(html) {
+    var div = this.options.doc.createElement('div'),
+        cleanedHTML;
+
+    if (html.trim() === '') {
+      cleanedHTML = '<p><br></p>';
+    } else {
+      div.innerHTML = html;
+      cleanedHTML = this.domHelper.cleanHTML(div);
+    }
+
+    this.editor.innerHTML = cleanedHTML;
+  }
+
   // returns the editor element
   getElement() {
     return this.editor;
@@ -461,34 +475,15 @@ class DOMHelper {
   // Standardizes bold/italic tags and crawls through nodes in DOM element, 
   // so that direct descendants have approved block-level tags
   cleanHTML(dom) {
-    var i, nodes, content, newHTML = '', tag, internalHTML;
-
+    // standardize tags
     this.replaceDomTags(dom, 'b', 'strong');
     this.replaceDomTags(dom, 'i', 'em');
-    nodes = dom.childNodes;
-    for (i = 0; i < nodes.length; i++) {
-      // ignore any nodes that have nothing but space characters
-      content = nodes[i].textContent.replace(/\s+/g, "");
-      if (content !== "" && nodes[i].tagName) {
-        tag = nodes[i].tagName.toLowerCase();
-        
-        // Direct descendants should be approved block-level tags only
-        if (this.blockTags.indexOf(tag) !== -1) {
-          internalHTML = this.cleanInternal(nodes[i], tag);
-          newHTML += '<' + tag + '>' + internalHTML + '</' + tag + '>';
-        } else {
-          internalHTML = this.cleanInternal(nodes[i], 'p');
-          newHTML += '<p>' + internalHTML + '</p>';
-        }
-      } else if (content !== "") {
-        newHTML += '<p>' + nodes[i].textContent.trim() + '</p>';
-      }
-    }
-    return newHTML;
+    // clean the internals
+    return this.cleanInternal(dom, 'div', true);
   }
 
   // Loops through DOM node and returns only approved inline html
-  cleanInternal(node, tag) {
+  cleanInternal(node, tag, firstChild) {
     var newHTML = '', segment = '', cleanInt, wrap = 'nonsense', children, i;
 
     // if type is textNode return it
@@ -499,8 +494,11 @@ class DOMHelper {
 
     // groups segments of inline nodes within wrapper groups
     for (i = 0; i < children.length; i++) {
-      // format of return: [html, wrap tag]...
-      cleanInt = this.cleanInternalChild(children[i], tag);
+      // format of cleanInt: [html, wrap tag]
+      // the firstChild nodes of the editor are handled a little differently
+      cleanInt = (firstChild) ? 
+        this.cleanInternalFirstChild(children[i]) :
+        this.cleanInternalChild(children[i], tag);
 
       // if there is a new wrap tag
       if (cleanInt[1] !== wrap) {
@@ -523,6 +521,29 @@ class DOMHelper {
     }
 
     return newHTML;
+  }
+
+  // first child nodes are either returned as block level tags
+  // or their content is wrapped in them
+  cleanInternalFirstChild(child) {
+    var tag = (typeof child.tagName !== 'undefined') ? child.tagName.toLowerCase() : 'textnode',
+        wrap = '',
+        internalHTML;
+
+    // ensures the first child of the editor has a block-level tag, or wrapped into one
+    if (tag === 'textnode') {
+      tag = '';
+      wrap = 'p';
+    } else if (this.inlineTags.indexOf(tag) !== -1) {
+      wrap = 'p';
+    } else if (this.blockTags.indexOf(tag) === -1) {
+      tag = 'p';
+    }
+
+    // clean the internals of this child element
+    internalHTML = this.cleanInternal(child, tag);
+    // wrap the html with the approved tag, or empty string if not approved
+    return [this.wrapHTML(internalHTML, tag), wrap];
   }
 
   // Deep dives into a DOM node to return innerHTML with approved inline tags,

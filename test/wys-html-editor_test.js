@@ -440,6 +440,32 @@ exports['WysHtmlEditor'] = {
     test.equal(this.wyseditor.getElement(), this.wyseditor.editor);
     test.done();
   },
+  // setValue
+  'sets the editor innerHTML value with blank string': function(test) {
+    var html = '  ',
+        expect = '<p><br></p>',
+        result;
+
+    this.wyseditor.setContent(html);
+
+    result = this.wyseditor.getValue();
+    test.expect(1);
+    test.equal(result, expect);
+    test.done();
+  },
+  // setValue
+  'sets the editor innerHTML value': function(test) {
+    var html = 'something <strong>bold</strong> here.',
+        expect = '<p>something <strong>bold</strong> here.</p>',
+        result;
+
+    this.wyseditor.setContent(html);
+
+    result = this.wyseditor.getValue();
+    test.expect(1);
+    test.equal(result, expect);
+    test.done();
+  },
   // getValue
   'returns current WYSIWYG value': function(test) {
     test.expect(1);

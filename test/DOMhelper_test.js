@@ -56,15 +56,51 @@ exports['DOMHelper'] = {
     },
     // cleanInternal
     'deep cleans the html within a dom node': function(test) {
-        var html = '<p>something</p> random <strong>here</strong>.',
-            expect = '<p>something</p><p>random <strong>here</strong>.</p>',
-            element = this.domhelper.doc.createElement('blockquote'),
+        var html = '<blockquote><p>something</p> random <strong>here</strong>.</blockquote>',
+            expect = '<blockquote><p>something</p><p>random <strong>here</strong>.</p></blockquote>',
+            element = this.domhelper.doc.createElement('div'),
             cleaned;
 
         element.innerHTML = html;
-        cleaned = this.domhelper.cleanInternal(element, 'blockquote');
+        cleaned = this.domhelper.cleanInternal(element, 'div', true);
         test.expect(1);
         test.equal(cleaned, expect);
+        test.done();
+    },
+    // cleanInternalFirstChild
+    'return valid html and wraps textnode in p tag': function(test) {
+        var expect = ['something ', 'p'],
+            element = this.domhelper.doc.createTextNode('something '),
+            result;
+
+        result = this.domhelper.cleanInternalFirstChild(element);
+        test.expect(1);
+        test.deepEqual(result, expect);
+        test.done();
+    },
+    // cleanInternalFirstChild
+    'return valid html and wraps inline node in p tag': function(test) {
+        var expect = ['<strong>bolded text</strong>', 'p'],
+            element = this.domhelper.doc.createElement('strong'),
+            result;
+
+        element.innerHTML = 'bolded text';
+        result = this.domhelper.cleanInternalFirstChild(element);
+        test.expect(1);
+        test.deepEqual(result, expect);
+        test.done();
+    },
+    // cleanInternalFirstChild
+    'return valid html and replaces invalid block tag with p tag': function(test) {
+        var html = 'some <strong>bolded</strong> text.',
+            expect = ['<p>some <strong>bolded</strong> text.</p>', ''],
+            element = this.domhelper.doc.createElement('address'),
+            result;
+
+        element.innerHTML = html;
+        result = this.domhelper.cleanInternalFirstChild(element);
+        test.expect(1);
+        test.deepEqual(result, expect);
         test.done();
     },
     // cleanInternalChild
