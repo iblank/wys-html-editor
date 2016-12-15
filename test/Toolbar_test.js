@@ -13,9 +13,10 @@ exports['Toolbar'] = {
         var mockBrow = new MockBrowser(),
             options = {
                 'doc': mockBrow.getDocument(),
+                'win': mockBrow.getWindow(),
                 'toolbar': ['b', 'i', 'ol', 'indent', 'outdent'],
                 'classPrefix': 'wys-editor-'
-            }, 
+            },
             newToolbar = Toolbar.createInstance(options).bar;
 
         test.expect(1);

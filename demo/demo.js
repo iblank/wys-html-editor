@@ -49,17 +49,6 @@ class HtmlEditor {
       buttons,
       cleanedHTML;
 
-    // [name, button text, classname]
-    this.buttonMap = {
-      'b': ['bold', '<strong>B</strong>', 'strong'],
-      'i': ['italic', '<em>I</em>', 'em'],
-      'ul': ['list', '&bullet;', 'ul'],
-      'ol': ['ordered-list', '1.', 'ol'],
-      'indent': ['indent', '--&gt;', 'indent', 'special'],
-      'outdent': ['outdent', '&lt;--', 'outdent', 'special']
-    };
-    this.buttonObjs = {};
-
     // this.classPrefix = 'wys-tb-';
     this.selText = '';
     this.toolbarFocus = false;
@@ -76,7 +65,6 @@ class HtmlEditor {
     // transfer the parent contents to the editor
     this.setContent(this.parentElem.innerHTML);
     this.toolbar = Toolbar.createInstance(this.options);
-    this.buttonObjs = this.toolbar.buttonObjs;
     this.toolbar.register(this);
 
     if (this.parentElem.innerHTML === '') {
@@ -207,80 +195,10 @@ class HtmlEditor {
     }
   }
 
-  // positions the toolbar centered over the current text selection
-  setToolbarPos(dims) {
-    var scrollPos = this.options.win.pageYOffset,
-        tb_width = this.toolbar.bar.offsetWidth,
-        tb_height = this.toolbar.bar.offsetHeight + 8,
-        top = Math.round(dims.y - tb_height),
-        left = Math.round(dims.x + (dims.w / 2) - (tb_width / 2));
-
-    // TODO: this will be useful for the widget button later...
-    // if (this.domHelper.isEmptyPara(this.selection.selectElem)) {
-    //   top = this.selection.selectElem.offsetTop - tb_height;
-    //   left = this.selection.selectElem.offsetLeft - (tb_width / 2);
-    // }
-
-    // keep toolbar from overflowing left of screen
-    if (left < 0) {
-      left = 0;
-    }
-    // keep toolbar from overflowing top of screen
-    if (top < 0) {
-      top = Math.round(dims.y + dims.h + 8);
-      Helper.addClass(this.toolbar.bar, 'below');
-    } else {
-      Helper.removeClass(this.toolbar.bar, 'below');
-    }
-
-    // apply the position
-    this.toolbar.bar.style.top = top + 'px';
-    this.toolbar.bar.style.left = left + 'px';
-  }
-
   // check the current text selection to see what tags are within it
   updateActiveToolbarButtons() {
     var sharedHierarchy = this.selection.getSelectionHierarchy(this.editor);
-
-    this.highlightToolbarButtons(sharedHierarchy);
-  }
-
-  // matches the current tags from the selection against
-  // the buttons in the toolbar
-  highlightToolbarButtons(tags) {
-    var i, tag, listShown = false;
-
-    // remove active class from all the buttons
-    this.unHighlightToolbarButtons();
-    for (i = tags.length - 1; i >= 0; i--) {
-      tag = tags[i].toLowerCase();
-      // if the tag matches a button, set it to active
-      if (tag in this.buttonObjs) {
-        Helper.addClass(this.buttonObjs[tag], 'active');
-      }
-      if (tag === 'li' && !listShown) {
-        if (this.buttonObjs['indent']) {
-          Helper.addClass(this.buttonObjs['indent'], 'show');
-        }
-        if (this.buttonObjs['outdent']) {
-          Helper.addClass(this.buttonObjs['outdent'], 'show');
-        }
-        listShown = true;
-      }
-      if (tag === 'ul' || tag === 'ol') {
-        break;
-      }
-    }
-  }
-
-  // remove active class from all buttons
-  unHighlightToolbarButtons() {
-    var i;
-
-    for (i in this.buttonObjs) {
-      Helper.removeClass(this.buttonObjs[i], 'show');
-      Helper.removeClass(this.buttonObjs[i], 'active');
-    }
+    this.toolbar.highlightButtons(sharedHierarchy);
   }
 
   // fires whenever text is selected in the editor
@@ -297,7 +215,7 @@ class HtmlEditor {
       // TODO: show toolbar function...
       this.toolbarFocus = false;
       this.toolbar.bar.style.display = 'block';
-      this.setToolbarPos(this.selection.selectPos);
+      this.toolbar.setPosition(this.selection.selectPos);
     } else {
       this.selText = '';
       this.toolbar.bar.style.display = 'none';
@@ -787,7 +705,8 @@ module.exports = Selection;
 },{"./selectionClasses/SelectionModern":9}],6:[function(require,module,exports){
  /*globals module, require, console, window, document, setTimeout, CustomEvent*/
  var ToolbarButton = require("./ToolbarButton"),
-     ToolbarButtonObservable = require("./ToolbarButtonObservable");
+     ToolbarButtonObservable = require("./ToolbarButtonObservable"),
+     Helper = require("./Helper");
 
  class Toolbar extends ToolbarButtonObservable {
      constructor(options) {
@@ -824,7 +743,7 @@ module.exports = Selection;
              // if it's a recognized button
              if (btns[i] in this.buttonMap) {
                  toolBarButton = ToolbarButton.create(btns[i], this.options);
-                     // add each button to an array, to keep track of them
+                 // add each button to an array, to keep track of them
                  toolBarButton.register(this);
                  this.buttonObjs[this.buttonMap[btns[i]][2]] = toolBarButton.btnNode;
                  ul.appendChild(toolBarButton.li);
@@ -834,10 +753,78 @@ module.exports = Selection;
 
          return ul;
      }
+
+     setPosition(dims) {
+         var scrollPos = this.options.win.pageYOffset,
+             tb_width = this.bar.offsetWidth,
+             tb_height = this.bar.offsetHeight + 8,
+             top = Math.round(dims.y - tb_height),
+             left = Math.round(dims.x + (dims.w / 2) - (tb_width / 2));
+
+         // TODO: this will be useful for the widget button later...
+         // if (this.domHelper.isEmptyPara(this.selection.selectElem)) {
+         //   top = this.selection.selectElem.offsetTop - tb_height;
+         //   left = this.selection.selectElem.offsetLeft - (tb_width / 2);
+         // }
+
+         // keep toolbar from overflowing left of screen
+         if (left < 0) {
+             left = 0;
+         }
+         // keep toolbar from overflowing top of screen
+         if (top < 0) {
+             top = Math.round(dims.y + dims.h + 8);
+             Helper.addClass(this.bar, 'below');
+         } else {
+             Helper.removeClass(this.bar, 'below');
+         }
+
+         // apply the position
+         this.bar.style.top = top + 'px';
+         this.bar.style.left = left + 'px';
+     }
+
+     // matches the current tags from the selection against
+     // the buttons in the toolbar
+     highlightButtons(tags) {
+         var i, tag, listShown = false;
+
+         // remove active class from all the buttons
+         this.unHighlightButtons();
+         for (i = tags.length - 1; i >= 0; i--) {
+             tag = tags[i].toLowerCase();
+             // if the tag matches a button, set it to active
+             if (tag in this.buttonObjs) {
+                 Helper.addClass(this.buttonObjs[tag], 'active');
+             }
+             if (tag === 'li' && !listShown) {
+                 if (this.buttonObjs['indent']) {
+                     Helper.addClass(this.buttonObjs['indent'], 'show');
+                 }
+                 if (this.buttonObjs['outdent']) {
+                     Helper.addClass(this.buttonObjs['outdent'], 'show');
+                 }
+                 listShown = true;
+             }
+             if (tag === 'ul' || tag === 'ol') {
+                 break;
+             }
+         }
+     }
+
+     // remove active class from all buttons
+     unHighlightButtons() {
+         var i;
+
+         for (i in this.buttonObjs) {
+             Helper.removeClass(this.buttonObjs[i], 'show');
+             Helper.removeClass(this.buttonObjs[i], 'active');
+         }
+     }
  }
 
  module.exports = Toolbar;
-},{"./ToolbarButton":7,"./ToolbarButtonObservable":8}],7:[function(require,module,exports){
+},{"./Helper":4,"./ToolbarButton":7,"./ToolbarButtonObservable":8}],7:[function(require,module,exports){
 /*globals module, require, console, window, document, setTimeout, CustomEvent*/
 var Helper = require("./Helper"),
     ToolbarButtonObservable = require("./ToolbarButtonObservable");

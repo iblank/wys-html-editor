@@ -186,7 +186,7 @@ exports['WysHtmlEditor'] = {
     // left: 30 + (40 / 2) - (50 / 2) = 25px
     // top: 35 - 20 + 8 (height of down arrow on toolbar) = 7px
 
-    this.wyseditor.setToolbarPos(dims);
+    this.wyseditor.toolbar.setPosition(dims);
     test.expect(3);
     test.ok(helperSpy.calledOnce);
     test.equal(this.wyseditor.toolbar.bar.style.left, '25px');
@@ -211,7 +211,7 @@ exports['WysHtmlEditor'] = {
     // top: 5 - 20 + 8 (height of down arrow on toolbar) = -7px
     // (since -7 < 0) top: 0 + 5 + 45 + 8
 
-    this.wyseditor.setToolbarPos(dims);
+    this.wyseditor.toolbar.setPosition(dims);
     test.expect(3);
     test.ok(helperSpy.calledOnce);
     test.equal(this.wyseditor.toolbar.bar.style.left, '0px');
@@ -221,7 +221,7 @@ exports['WysHtmlEditor'] = {
   // updateActiveToolbarButtons
   'get current hierarchy of DOM selection and call highlight function': function (test) {
     var returnTags = ['p', 'em'],
-        highlightSpy = sandbox.stub(this.wyseditor, 'highlightToolbarButtons');
+        highlightSpy = sandbox.stub(this.wyseditor.toolbar, 'highlightButtons');
   
     sandbox.stub(this.wyseditor.selection, 'getSelectionHierarchy').returns(returnTags);
     this.wyseditor.updateActiveToolbarButtons();
@@ -234,8 +234,8 @@ exports['WysHtmlEditor'] = {
     var tags = ['div', 'ul', 'li', 'ol', 'li', 'strong'],
         HelperStub = sandbox.stub(Helper, 'addClass');
   
-    sandbox.stub(this.wyseditor, 'unHighlightToolbarButtons');
-    this.wyseditor.highlightToolbarButtons(tags);
+    sandbox.stub(this.wyseditor.toolbar, 'unHighlightButtons');
+    this.wyseditor.toolbar.highlightButtons(tags);
     test.expect(1);
     test.equal(HelperStub.callCount, 4); // strong + ol + indent + outdent
     test.done();
@@ -244,7 +244,7 @@ exports['WysHtmlEditor'] = {
   'unhighlight buttons': function(test) {
     var HelperStub = sandbox.stub(Helper, 'removeClass');
   
-    this.wyseditor.unHighlightToolbarButtons();
+    this.wyseditor.toolbar.unHighlightButtons();
     test.expect(1);
     test.equal(HelperStub.callCount, 10); // removeClass called twice for 5 buttons ['b', 'i', 'ol', 'indent', 'outdent']
     test.done();
@@ -254,7 +254,7 @@ exports['WysHtmlEditor'] = {
     this.wyseditor.toolbar.bar.style.display = 'none';
     sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('<strong>text</strong>');
     sandbox.stub(this.wyseditor, 'updateActiveToolbarButtons');
-    sandbox.stub(this.wyseditor, 'setToolbarPos');
+    sandbox.stub(this.wyseditor.toolbar, 'setPosition');
     this.wyseditor.textSelection();
     test.expect(1);
     test.equal(this.wyseditor.toolbar.bar.style.display, 'block');
