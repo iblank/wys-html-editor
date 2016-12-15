@@ -5,7 +5,6 @@ var ToolbarButton = require("../lib/js/classes/ToolbarButton"),
 
 exports['ToolbarButton'] = {
     setUp: function (done) {
-
         // setup here
         done();
     },
@@ -17,6 +16,13 @@ exports['ToolbarButton'] = {
         test.expect(1);
 
         result = ToolbarButton.create('b', {
+            'b': ['bold', '<strong>B</strong>', 'strong'],
+            'i': ['italic', '<em>I</em>', 'em'],
+            'ul': ['list', '&bullet;', 'ul'],
+            'ol': ['ordered-list', '1.', 'ol'],
+            'indent': ['indent', '--&gt;', 'indent', 'special'],
+            'outdent': ['outdent', '&lt;--', 'outdent', 'special']
+        }, {
             'doc': mockBrow.getDocument(),
             'classPrefix': 'wys-editor-'
         });
