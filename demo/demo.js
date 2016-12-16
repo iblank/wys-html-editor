@@ -49,9 +49,7 @@ class HtmlEditor {
       buttons,
       cleanedHTML;
 
-    // this.classPrefix = 'wys-tb-';
     this.selText = '';
-    this.toolbarFocus = false;
     this.keyMap = {
       'ENTER': 13,
       'ARROWUP': 38,
@@ -133,11 +131,11 @@ class HtmlEditor {
     }, false);
 
     this.toolbar.bar.addEventListener("mousedown", function () {
-      context.toolbarFocus = true;
+      context.toolbar.setFocus(true);
     }, false);
 
     this.toolbar.bar.addEventListener("mouseup", function () {
-      context.toolbarFocus = false;
+      context.toolbar.setFocus(false);
       context.editor.focus();
     }, false);
   }
@@ -190,8 +188,8 @@ class HtmlEditor {
 
   // when editor blurred, and the toolbar isn't the new focus, hide the toolbar
   checkOnBlur(event) {
-    if (!this.toolbarFocus) {
-      this.toolbar.bar.style.display = 'none';
+    if (!this.toolbar.hasFocus()) {
+      this.toolbar.hide();
     }
   }
 
@@ -213,14 +211,13 @@ class HtmlEditor {
       // update the toolbar buttons for current selection
       this.updateActiveToolbarButtons(text);
       // TODO: show toolbar function...
-      this.toolbarFocus = false;
-      this.toolbar.bar.style.display = 'block';
+      this.toolbar.setFocus(false);
+      this.toolbar.show();
       this.toolbar.setPosition(this.selection.selectPos);
     } else {
       this.selText = '';
-      this.toolbar.bar.style.display = 'none';
+      this.toolbar.hide();
     }
-    // this.selText = text;
   }
 
   // fires when keyboard key released
@@ -301,7 +298,7 @@ class HtmlEditor {
   // gets a html string, cleans the html, and sets it as the new editor value
   setContent(html) {
     var div = this.options.doc.createElement('div'),
-        cleanedHTML;
+      cleanedHTML;
 
     if (html.trim() === '') {
       cleanedHTML = '<p><br></p>';
@@ -325,7 +322,6 @@ class HtmlEditor {
 };
 
 module.exports = HtmlEditor;
-
 },{"./classes/DOMHelper":3,"./classes/Helper":4,"./classes/Selection":5,"./classes/Toolbar":6}],3:[function(require,module,exports){
 /*jshint -W032 */ /* ignore unnecessary semicolon */
 /*globals module, document, console*/
@@ -711,9 +707,11 @@ var ToolbarButton = require("./ToolbarButton"),
 class Toolbar extends ToolbarButtonObservable {
     constructor(options) {
         super();
+        this.focus = false;
         this.buttonObjs = {};
         this.options = options || null;
         this.bar = options['doc'].createElement('div');
+        this.bar.style.display = 'none';
         this.buttonMap = {
             'b': ['bold', '<strong>B</strong>', 'strong'],
             'i': ['italic', '<em>I</em>', 'em'],
@@ -732,6 +730,26 @@ class Toolbar extends ToolbarButtonObservable {
         }
 
         return this.instance;
+    }
+
+    setFocus(focus) {
+        this.focus = focus;
+    }
+
+    hasFocus() {
+        return this.focus;
+    }
+
+    show() {
+        this.bar.style.display = 'block';
+    }
+
+    hide() {
+        this.bar.style.display = 'none';
+    }
+
+    isHidden() {
+        return this.bar.style.display === 'none';
     }
 
     createButtons() {

@@ -151,22 +151,22 @@ exports['WysHtmlEditor'] = {
   },
   // checkOnBlur
   'check on editor blur, if toolbar does not have focus': function (test) {
-    this.wyseditor.toolbarFocus = false;
-    this.wyseditor.toolbar.bar.style.display = 'block';
+    this.wyseditor.toolbar.setFocus(false);
+    this.wyseditor.toolbar.show();
 
     this.wyseditor.checkOnBlur();
     test.expect(1);
-    test.equal(this.wyseditor.toolbar.bar.style.display, 'none');
+    test.equal(this.wyseditor.toolbar.isHidden(), true);
     test.done();
   },
   // checkOnBlur
   'check on editor blur, if toolbar does have focus': function (test) {
-    this.wyseditor.toolbarFocus = true;
-    this.wyseditor.toolbar.bar.style.display = 'block';
+    this.wyseditor.toolbar.setFocus(true);
+    this.wyseditor.toolbar.show();
 
     this.wyseditor.checkOnBlur();
     test.expect(1);
-    test.equal(this.wyseditor.toolbar.bar.style.display, 'block');
+    test.equal(this.wyseditor.toolbar.isHidden(), false);
     test.done();
   },
   // setToolbarPos
@@ -251,22 +251,22 @@ exports['WysHtmlEditor'] = {
   },
   // textSelection
   'text selection returns string': function(test) {
-    this.wyseditor.toolbar.bar.style.display = 'none';
+    this.wyseditor.toolbar.hide();
     sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('<strong>text</strong>');
     sandbox.stub(this.wyseditor, 'updateActiveToolbarButtons');
     sandbox.stub(this.wyseditor.toolbar, 'setPosition');
     this.wyseditor.textSelection();
     test.expect(1);
-    test.equal(this.wyseditor.toolbar.bar.style.display, 'block');
+    test.equal(this.wyseditor.toolbar.isHidden(), false);
     test.done();
   },
   // textSelection
   'text selection returns empty string': function(test) {
-    this.wyseditor.toolbar.bar.style.display = 'block';
+    this.wyseditor.toolbar.show();
     sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
     this.wyseditor.textSelection();
     test.expect(1);
-    test.equal(this.wyseditor.toolbar.bar.style.display, 'none');
+    test.equal(this.wyseditor.toolbar.isHidden(), true);
     test.done();
   },
   // checkKeyUp
