@@ -31,7 +31,7 @@ class HtmlEditor {
         'disableMultiEmptyLines': true,
         'disableShiftEnter': true,
         'toolbar': ['b', 'i', 'ul', 'ol', 'indent', 'outdent'],
-        'classPrefix': 'wys-editor-'
+        'classPrefix': 'wys-html-editor-'
       };
 
     // initialize the parent element, selection and options
@@ -88,7 +88,7 @@ class HtmlEditor {
     var editor = this.options['doc'].createElement('div');
 
     editor.setAttribute('contentEditable', true);
-    editor.classList.add('wys-html-editor-element');
+    editor.classList.add(this.options['classPrefix'] + 'element');
     editor.setAttribute('role', 'textbox');
     editor.setAttribute('aria-multiline', true);
 
