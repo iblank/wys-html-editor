@@ -324,7 +324,8 @@ module.exports = HtmlEditor;
 class DOMHelper {
   constructor(doc) {
     this.blockTags = ['p', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'];
-    this.inlineTags = ['span', 'b', 'strong', 'i', 'em'];
+    this.inlineTags = ['span', 'b', 'strong', 'i', 'em', 'br'];
+    this.noTextTags = ['br'];
     this.doc = (!doc) ? document : doc;
   }
 
@@ -505,6 +506,12 @@ class DOMHelper {
     if (html === '' && tag === 'p') {
       return '';
     }
+
+    // standalone tag with no text node, enter only the tag
+    if (this.noTextTags.indexOf(tag) !== -1) {
+      return '<' + tag + '/>';
+    }
+    
     return '<' + tag + '>' + html + '</' + tag + '>';
   }
 
