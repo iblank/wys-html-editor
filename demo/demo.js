@@ -899,7 +899,6 @@ class ToolbarButtonObservable {
 
     notifyToolbarBtnClick(btnclass) {
         for (var i = 0; i < this.observers.length; i++) {
-            console.log(this.observers[i]);
             this.observers[i].notifyToolbarBtnClick(btnclass);
         }
     }
