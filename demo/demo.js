@@ -65,12 +65,6 @@ class HtmlEditor {
     this.toolbar = Toolbar.createInstance(this.options);
     this.toolbar.register(this);
 
-    if (this.parentElem.innerHTML === '') {
-      this.editor.innerHTML = '<p><br></p>';
-    } else {
-      cleanedHTML = this.domHelper.cleanHTML(this.parentElem);
-      this.editor.innerHTML = cleanedHTML;
-    }
     this.parentElem.innerHTML = '';
 
     // attach the editor and toolbar elements
@@ -140,7 +134,7 @@ class HtmlEditor {
     }, false);
   }
 
-  notify(btnclass) {
+  notifyToolbarBtnClick(btnclass) {
     var savedSel,
       foundClass;
 
@@ -858,7 +852,7 @@ class ToolbarButton extends ToolbarButtonObservable {
     }
 
     clicked(btnclass) {
-        this.notify(btnclass);
+        this.notifyToolbarBtnClick(btnclass);
     }
 
     static create(btn, buttonMap, options) {
@@ -903,9 +897,10 @@ class ToolbarButtonObservable {
         this.observers.push(observer);
     }
 
-    notify(btnclass) {
+    notifyToolbarBtnClick(btnclass) {
         for (var i = 0; i < this.observers.length; i++) {
-            this.observers[i].notify(btnclass);
+            console.log(this.observers[i]);
+            this.observers[i].notifyToolbarBtnClick(btnclass);
         }
     }
 }

@@ -104,7 +104,7 @@ exports['WysHtmlEditor'] = {
         prefixClass = this.wyseditor.options.classPrefix + 'btn-strong';
 
     sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
-    this.wyseditor.notify(prefixClass);
+    this.wyseditor.notifyToolbarBtnClick(prefixClass);
     test.expect(4);
     test.ok(saveSelStub.calledOnce);
     test.ok(restoreSelStub.calledOnce);
@@ -121,7 +121,7 @@ exports['WysHtmlEditor'] = {
         prefixClass = this.wyseditor.options.classPrefix + 'btn-em';
 
     sandbox.stub(this.wyseditor.selection, 'getSelectionHTML').returns('');
-    this.wyseditor.notify(prefixClass);
+    this.wyseditor.notifyToolbarBtnClick(prefixClass);
     test.expect(4);
     test.ok(saveSelStub.calledOnce);
     test.ok(restoreSelStub.calledOnce);
@@ -134,7 +134,7 @@ exports['WysHtmlEditor'] = {
     var execStub = sandbox.mock(this.wyseditor).expects('execCommand'),
         prefixClass = this.wyseditor.options.classPrefix + 'btn-ul';
 
-    this.wyseditor.notify(prefixClass);
+    this.wyseditor.notifyToolbarBtnClick(prefixClass);
     test.expect(1);
     test.ok(execStub.withArgs('insertUnorderedList'));
     test.done();
@@ -144,7 +144,7 @@ exports['WysHtmlEditor'] = {
     var execStub = sandbox.mock(this.wyseditor).expects('execCommand'),
         prefixClass = this.wyseditor.options.classPrefix + 'btn-ol';
 
-    this.wyseditor.notify(prefixClass);
+    this.wyseditor.notifyToolbarBtnClick(prefixClass);
     test.expect(1);
     test.ok(execStub.withArgs('insertOrderedList'));
     test.done();
