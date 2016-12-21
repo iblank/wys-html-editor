@@ -370,8 +370,8 @@ class DOMHelper {
 
       // if there is a new wrap tag
       if (cleanInt[1] !== wrap) {
-        // if there is an existing segment, add it in
-        if (segment !== '') {
+        // as long as we're not trying to wrap an empty segment, add it in
+        if (!(segment.replace(/\s+/g, '') === '' && wrap !== '')) {
           newHTML+= this.wrapHTML(segment, wrap);
         }
         // start new html segment
@@ -384,7 +384,7 @@ class DOMHelper {
       }
     }
     // last html segment is added after for loop
-    if (segment !== '') {
+    if (!(segment.replace(/\s+/g, '') === '' && wrap !== '')) {
       newHTML+= this.wrapHTML(segment, wrap);
     }
 
@@ -499,6 +499,11 @@ class DOMHelper {
     // trim the contents of block level tags
     if (this.blockTags.indexOf(tag) !== -1) {
       html = html.trim();
+    }
+
+    // no empty paragraphs (editor creates p with br, which is ok)
+    if (html === '' && tag === 'p') {
+      return '';
     }
     return '<' + tag + '>' + html + '</' + tag + '>';
   }
