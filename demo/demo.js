@@ -700,6 +700,7 @@ class Selection {
 module.exports = Selection;
 },{"./selectionClasses/SelectionModern":9}],6:[function(require,module,exports){
 /*globals module, require, console, window, document, setTimeout, CustomEvent*/
+'use strict';
 var ToolbarButton = require("./ToolbarButton"),
     ToolbarButtonObservable = require("./ToolbarButtonObservable"),
     Helper = require("./Helper");
@@ -844,6 +845,7 @@ class Toolbar extends ToolbarButtonObservable {
 module.exports = Toolbar;
 },{"./Helper":4,"./ToolbarButton":7,"./ToolbarButtonObservable":8}],7:[function(require,module,exports){
 /*globals module, require, console, window, document, setTimeout, CustomEvent*/
+'use strict';
 var Helper = require("./Helper"),
     ToolbarButtonObservable = require("./ToolbarButtonObservable");
 
@@ -891,6 +893,7 @@ class ToolbarButton extends ToolbarButtonObservable {
 module.exports = ToolbarButton;
 },{"./Helper":4,"./ToolbarButtonObservable":8}],8:[function(require,module,exports){
 /*globals module, require, console, window, document, setTimeout, CustomEvent*/
+'use strict';
 class ToolbarButtonObservable {
     constructor() {
         this.observers = [];
