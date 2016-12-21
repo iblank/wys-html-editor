@@ -12,26 +12,27 @@ elem.addEventListener('change', function(event) {
 
 editor = new wyshtml(elem);
 
-},{"../lib/wys-html-editor":7}],2:[function(require,module,exports){
+},{"../lib/wys-html-editor":10}],2:[function(require,module,exports){
 /*jshint -W032, esnext:true */ /* ignore unnecessary semicolon */
 /*globals module, require, console, window, document, setTimeout, CustomEvent*/
 'use strict';
 var Helper = require("./classes/Helper"),
-    DOMHelper = require("./classes/DOMHelper"),
-    Selections = require("./classes/Selection");
+  DOMHelper = require("./classes/DOMHelper"),
+  Selections = require("./classes/Selection"),
+  Toolbar = require("./classes/Toolbar");
 
 class HtmlEditor {
   constructor(e, o) {
     var doc = (typeof document === 'undefined') ? {} : document,
-        win = (typeof window === 'undefined') ? {} : window,
-        defaults = {
-          'doc' : doc,
-          'win' : win,
-          'disableMultiEmptyLines' : true,
-          'disableShiftEnter' : true,
-          'toolbar' : ['b', 'i', 'ul', 'ol', 'indent', 'outdent'],
-          'classPrefix' : 'wys-editor-'
-        };
+      win = (typeof window === 'undefined') ? {} : window,
+      defaults = {
+        'doc': doc,
+        'win': win,
+        'disableMultiEmptyLines': true,
+        'disableShiftEnter': true,
+        'toolbar': ['b', 'i', 'ul', 'ol', 'indent', 'outdent'],
+        'classPrefix': 'wys-editor-'
+      };
 
     // initialize the parent element, selection and options
     this.parentElem = e;
@@ -45,23 +46,10 @@ class HtmlEditor {
 
   init() {
     var context = this,
-        buttons,
-        cleanedHTML;
+      buttons,
+      cleanedHTML;
 
-    // [name, button text, classname]
-    this.buttonMap = {
-      'b': ['bold', '<strong>B</strong>', 'strong'],
-      'i': ['italic', '<em>I</em>', 'em'],
-      'ul': ['list', '&bullet;', 'ul'],
-      'ol': ['ordered-list', '1.', 'ol'],
-      'indent': ['indent', '--&gt;', 'indent', 'special'],
-      'outdent': ['outdent', '&lt;--', 'outdent', 'special']
-    };
-    this.buttonObjs = {};
-
-    // this.classPrefix = 'wys-tb-';
     this.selText = '';
-    this.toolbarFocus = false;
     this.keyMap = {
       'ENTER': 13,
       'ARROWUP': 38,
@@ -71,18 +59,20 @@ class HtmlEditor {
     };
     // create the new editor and toolbar elements
     this.editor = this.createEditor();
-    this.toolbar = this.createToolbar();
 
     // transfer the parent contents to the editor
     this.setContent(this.parentElem.innerHTML);
+    this.toolbar = Toolbar.createInstance(this.options);
+    this.toolbar.register(this);
+
     this.parentElem.innerHTML = '';
 
     // attach the editor and toolbar elements
     this.parentElem.appendChild(this.editor);
-    this.parentElem.appendChild(this.toolbar);
+    this.parentElem.appendChild(this.toolbar.bar);
 
     this.addEventListeners();
-    
+
     // CustomEvent not available to unit tests
     if (typeof CustomEvent !== 'undefined') {
       this.changeEvent = new CustomEvent('change');
@@ -96,7 +86,7 @@ class HtmlEditor {
 
   createEditor() {
     var editor = this.options['doc'].createElement('div');
-    
+
     editor.setAttribute('contentEditable', true);
     editor.classList.add('wys-html-editor-element');
     editor.setAttribute('role', 'textbox');
@@ -105,104 +95,49 @@ class HtmlEditor {
     return editor;
   }
 
-  createToolbar() {  
-    var toolbar = this.options['doc'].createElement('div'),
-        buttons;
-    
-    toolbar.classList.add('wys-html-editor-toolbar');
-    buttons = this.createToolbarButtons();
-
-    toolbar.appendChild(buttons);
-    
-    return toolbar;
-  }
-
   addEventListeners() {
     var context = this;
-    
-    this.editor.addEventListener("keydown", function(event) {
+
+    this.editor.addEventListener("keydown", function (event) {
       context.checkKeyDown(event);
     }, false);
 
-    this.editor.addEventListener("keyup", function(event) {
+    this.editor.addEventListener("keyup", function (event) {
       context.checkKeyUp(event);
       context.selection.updateCursorPosition();
       context.selection.updateSelectionElement();
       context.updateValue();
     }, false);
 
-    this.editor.addEventListener("mouseup", function(event) {
+    this.editor.addEventListener("mouseup", function (event) {
       context.selection.updateCursorPosition();
       context.selection.updateSelectionElement();
       context.textSelection();
     }, false);
 
-    this.editor.addEventListener("blur", function(event) {
+    this.editor.addEventListener("blur", function (event) {
       event.preventDefault();
       // blur fires before mousedown, so we need to give the toolbar
       // time to register a click before hiding it
-      setTimeout(function() { context.checkOnBlur(event); }, 10);
+      setTimeout(function () {
+        context.checkOnBlur(event);
+      }, 10);
     }, false);
 
-    this.toolbar.addEventListener("mousedown", function() {
-      context.toolbarFocus = true;
+    this.toolbar.bar.addEventListener("mousedown", function () {
+      context.toolbar.setFocus(true);
     }, false);
 
-    this.toolbar.addEventListener("mouseup", function() {
-      context.toolbarFocus = false;
+    this.toolbar.bar.addEventListener("mouseup", function () {
+      context.toolbar.setFocus(false);
       context.editor.focus();
     }, false);
   }
 
-  createToolbarButtons() {
-    var ul = this.options['doc'].createElement('ul'),
-        btns = this.options.toolbar,
-        i;
-
-    for (i = 0; i < btns.length; i++) {
-      // if it's a recognized button
-      if (btns[i] in this.buttonMap) {
-        ul.appendChild(this.createToolbarButton(btns[i]));
-      }
-    }
-
-    return ul;
-  }
-
-  // btn is a string that cooresponds to a particular button
-  createToolbarButton(btn) {
-    var li = this.options['doc'].createElement('li'),
-        btnNode = this.options['doc'].createElement('button'),
-        context = this;
-
-    // add the button class (ex: wys-editor-btn-strong)
-    btnNode.setAttribute('class', this.options.classPrefix + 'btn-' + this.buttonMap[btn][2]);
-    // if there are additional classes...
-    if (this.buttonMap[btn][3]) {
-      Helper.addClass(btnNode, this.buttonMap[btn][3]);
-    }
-    // add the button title (ex: bold)
-    btnNode.title = this.buttonMap[btn][0];
-    // add button html (ex: <strong>B</strong>)
-    btnNode.innerHTML = this.buttonMap[btn][1];
-
-    // add button click listener, with function to respond to event
-    btnNode.addEventListener("click", function(event) {
-      context.toolbarButtonClick(event.target.className);
-    }, false);
-
-    // add each button to an array, to keep track of them
-    this.buttonObjs[this.buttonMap[btn][2]] = btnNode;
-
-    li.appendChild(btnNode);
-
-    return li;
-  }
-
-  toolbarButtonClick(btnclass) {
+  notifyToolbarBtnClick(btnclass) {
     var savedSel,
-        foundClass;
-    
+      foundClass;
+
     // find className that starts with "wys-editor-btn-"
     foundClass = Helper.findWordWithPrefix(this.options.classPrefix + 'btn-', btnclass);
     if (foundClass !== '') {
@@ -247,92 +182,22 @@ class HtmlEditor {
 
   // when editor blurred, and the toolbar isn't the new focus, hide the toolbar
   checkOnBlur(event) {
-    if (!this.toolbarFocus) {
-      this.toolbar.style.display = 'none';
+    if (!this.toolbar.hasFocus()) {
+      this.toolbar.hide();
     }
-  }
-
-  // positions the toolbar centered over the current text selection
-  setToolbarPos(dims) {
-    var scrollPos = this.options.win.pageYOffset,
-        tb_width = this.toolbar.offsetWidth,
-        tb_height = this.toolbar.offsetHeight + 8,
-        top = Math.round(dims.y - tb_height),
-        left = Math.round(dims.x + (dims.w / 2) - (tb_width / 2));
-
-    // TODO: this will be useful for the widget button later...
-    // if (this.domHelper.isEmptyPara(this.selection.selectElem)) {
-    //   top = this.selection.selectElem.offsetTop - tb_height;
-    //   left = this.selection.selectElem.offsetLeft - (tb_width / 2);
-    // }
-
-    // keep toolbar from overflowing left of screen
-    if (left < 0) {
-      left = 0;
-    }
-    // keep toolbar from overflowing top of screen
-    if (top < 0) {
-      top = Math.round(dims.y + dims.h + 8);
-      Helper.addClass(this.toolbar, 'below');
-    } else {
-      Helper.removeClass(this.toolbar, 'below');
-    }
-
-    // apply the position
-    this.toolbar.style.top = (scrollPos + top)+'px';
-    this.toolbar.style.left = left+'px';
   }
 
   // check the current text selection to see what tags are within it
   updateActiveToolbarButtons() {
-      var sharedHierarchy = this.selection.getSelectionHierarchy(this.editor);
-
-      this.highlightToolbarButtons(sharedHierarchy);
-  }
-
-  // matches the current tags from the selection against
-  // the buttons in the toolbar
-  highlightToolbarButtons(tags) {
-    var i, tag, listShown = false;
-    
-    // remove active class from all the buttons
-    this.unHighlightToolbarButtons();
-    for (i = tags.length - 1; i >= 0; i--) {
-      tag = tags[i].toLowerCase();
-      // if the tag matches a button, set it to active
-      if (tag in this.buttonObjs) {
-        Helper.addClass(this.buttonObjs[tag], 'active');
-      }
-      if (tag === 'li' && !listShown) {
-        if (this.buttonObjs['indent']) {
-          Helper.addClass(this.buttonObjs['indent'], 'show');
-        }
-        if (this.buttonObjs['outdent']) {
-          Helper.addClass(this.buttonObjs['outdent'], 'show');
-        }
-        listShown = true;
-      }
-      if (tag === 'ul' || tag === 'ol') {
-        break;
-      }
-    }
-  }
-
-  // remove active class from all buttons
-  unHighlightToolbarButtons() {
-    var i;
-
-    for (i in this.buttonObjs) {
-      Helper.removeClass(this.buttonObjs[i], 'show');
-      Helper.removeClass(this.buttonObjs[i], 'active');
-    }
+    var sharedHierarchy = this.selection.getSelectionHierarchy(this.editor);
+    this.toolbar.highlightButtons(sharedHierarchy);
   }
 
   // fires whenever text is selected in the editor
   textSelection() {
     var text = this.selection.getSelectionHTML(),
-        tags,
-        sameSelection = (this.selText === text);
+      tags,
+      sameSelection = (this.selText === text);
 
     if (text.length > 0 && !sameSelection) {
       // A text selection has been made!!!
@@ -340,14 +205,13 @@ class HtmlEditor {
       // update the toolbar buttons for current selection
       this.updateActiveToolbarButtons(text);
       // TODO: show toolbar function...
-      this.toolbarFocus = false;
-      this.toolbar.style.display = 'block';
-      this.setToolbarPos(this.selection.selectPos);
+      this.toolbar.setFocus(false);
+      this.toolbar.show();
+      this.toolbar.setPosition(this.selection.selectPos);
     } else {
       this.selText = '';
-      this.toolbar.style.display = 'none';
+      this.toolbar.hide();
     }
-    // this.selText = text;
   }
 
   // fires when keyboard key released
@@ -355,11 +219,11 @@ class HtmlEditor {
     var key = event.which || event.keyCode;
     // shift+arrow selections
     if (event.shiftKey &&
-        (key === this.keyMap.ARROWUP ||
+      (key === this.keyMap.ARROWUP ||
         key === this.keyMap.ARROWDOWN ||
         key === this.keyMap.ARROWLEFT ||
         key === this.keyMap.ARROWRIGHT)) {
-        this.textSelection();
+      this.textSelection();
     }
   }
 
@@ -379,7 +243,7 @@ class HtmlEditor {
     if (!this.selection.isSelectionInside(this.editor, force_selection)) {
       return false;
     }
-    
+
     // for webkit, mozilla, opera
     if (this.options['win'].getSelection) {
       // Buggy, call within 'try/catch'
@@ -388,7 +252,7 @@ class HtmlEditor {
           return false;
         }
         return this.options['doc'].execCommand(command, false, param);
-      } catch(e) {}
+      } catch (e) {}
     }
 
     return false;
@@ -404,10 +268,10 @@ class HtmlEditor {
     // disable multiple empty lines
     if (this.options.disableMultiEmptyLines && key === this.keyMap.ENTER && event.shiftKey === false) {
       var selElem = this.selection.getBaseChildSelectionElement(true, this.editor),
-          nextSib = selElem.nextElementSibling;
-      
-     // TODO: need to check more scenarios...
-     // current element is an empty paragraph
+        nextSib = selElem.nextElementSibling;
+
+      // TODO: need to check more scenarios...
+      // current element is an empty paragraph
       if (this.domHelper.isEmptyPara(selElem)) {
         event.preventDefault();
       } else if (nextSib && this.domHelper.isEmptyPara(nextSib)) {
@@ -428,7 +292,7 @@ class HtmlEditor {
   // gets a html string, cleans the html, and sets it as the new editor value
   setContent(html) {
     var div = this.options.doc.createElement('div'),
-        cleanedHTML;
+      cleanedHTML;
 
     if (html.trim() === '') {
       cleanedHTML = '<p><br></p>';
@@ -452,7 +316,7 @@ class HtmlEditor {
 };
 
 module.exports = HtmlEditor;
-},{"./classes/DOMHelper":3,"./classes/Helper":4,"./classes/Selection":5}],3:[function(require,module,exports){
+},{"./classes/DOMHelper":3,"./classes/Helper":4,"./classes/Selection":5,"./classes/Toolbar":6}],3:[function(require,module,exports){
 /*jshint -W032 */ /* ignore unnecessary semicolon */
 /*globals module, document, console*/
 'use strict';
@@ -460,7 +324,8 @@ module.exports = HtmlEditor;
 class DOMHelper {
   constructor(doc) {
     this.blockTags = ['p', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'];
-    this.inlineTags = ['span', 'b', 'strong', 'i', 'em'];
+    this.inlineTags = ['span', 'b', 'strong', 'i', 'em', 'br'];
+    this.noTextTags = ['br'];
     this.doc = (!doc) ? document : doc;
   }
 
@@ -506,8 +371,8 @@ class DOMHelper {
 
       // if there is a new wrap tag
       if (cleanInt[1] !== wrap) {
-        // if there is an existing segment, add it in
-        if (segment !== '') {
+        // as long as we're not trying to wrap an empty segment, add it in
+        if (!(segment.replace(/\s+/g, '') === '' && wrap !== '')) {
           newHTML+= this.wrapHTML(segment, wrap);
         }
         // start new html segment
@@ -520,7 +385,7 @@ class DOMHelper {
       }
     }
     // last html segment is added after for loop
-    if (segment !== '') {
+    if (!(segment.replace(/\s+/g, '') === '' && wrap !== '')) {
       newHTML+= this.wrapHTML(segment, wrap);
     }
 
@@ -636,6 +501,17 @@ class DOMHelper {
     if (this.blockTags.indexOf(tag) !== -1) {
       html = html.trim();
     }
+
+    // no empty paragraphs (editor creates p with br, which is ok)
+    if (html === '' && tag === 'p') {
+      return '';
+    }
+
+    // standalone tag with no text node, enter only the tag
+    if (this.noTextTags.indexOf(tag) !== -1) {
+      return '<' + tag + '/>';
+    }
+    
     return '<' + tag + '>' + html + '</' + tag + '>';
   }
 
@@ -828,7 +704,219 @@ class Selection {
 };
 
 module.exports = Selection;
-},{"./selectionClasses/SelectionModern":6}],6:[function(require,module,exports){
+},{"./selectionClasses/SelectionModern":9}],6:[function(require,module,exports){
+/*globals module, require, console, window, document, setTimeout, CustomEvent*/
+'use strict';
+var ToolbarButton = require("./ToolbarButton"),
+    ToolbarButtonObservable = require("./ToolbarButtonObservable"),
+    Helper = require("./Helper");
+
+class Toolbar extends ToolbarButtonObservable {
+    constructor(options) {
+        super();
+        this.focus = false;
+        this.buttonObjs = {};
+        this.options = options || null;
+        this.buttonMap = {
+            'b': ['bold', '<strong>B</strong>', 'strong'],
+            'i': ['italic', '<em>I</em>', 'em'],
+            'ul': ['list', '&bullet;', 'ul'],
+            'ol': ['ordered-list', '1.', 'ol'],
+            'indent': ['indent', '--&gt;', 'indent', 'special'],
+            'outdent': ['outdent', '&lt;--', 'outdent', 'special']
+        };
+        this.bar = options['doc'].createElement('div');
+        this.bar.style.display = 'none';
+        Helper.addClass(this.bar, options['classPrefix'] + 'toolbar');
+        this.bar.appendChild(this.createButtons());
+    }
+
+    static createInstance(options) {
+        if (!this.instance) {
+            this.instance = new Toolbar(options);
+        }
+
+        return this.instance;
+    }
+
+    setFocus(focus) {
+        this.focus = focus;
+    }
+
+    hasFocus() {
+        return this.focus;
+    }
+
+    show() {
+        this.bar.style.display = 'block';
+    }
+
+    hide() {
+        this.bar.style.display = 'none';
+    }
+
+    isHidden() {
+        return this.bar.style.display === 'none';
+    }
+
+    createButtons() {
+        var ul = this.options['doc'].createElement('ul'),
+            btns = this.options.toolbar,
+            i, toolBarButton;
+
+        for (i = 0; i < btns.length; i++) {
+            // if it's a recognized button
+            if (btns[i] in this.buttonMap) {
+                toolBarButton = ToolbarButton.create(btns[i], this.buttonMap, this.options);
+                // add each button to an array, to keep track of them
+                toolBarButton.register(this);
+                this.buttonObjs[this.buttonMap[btns[i]][2]] = toolBarButton.btnNode;
+                ul.appendChild(toolBarButton.li);
+            }
+        }
+
+        return ul;
+    }
+
+    setPosition(dims) {
+        var scrollPos = this.options.win.pageYOffset,
+            tb_width = this.bar.offsetWidth,
+            tb_height = this.bar.offsetHeight + 8,
+            top = Math.round(dims.y - tb_height),
+            left = Math.round(dims.x + (dims.w / 2) - (tb_width / 2));
+
+        // TODO: this will be useful for the widget button later...
+        // if (this.domHelper.isEmptyPara(this.selection.selectElem)) {
+        //   top = this.selection.selectElem.offsetTop - tb_height;
+        //   left = this.selection.selectElem.offsetLeft - (tb_width / 2);
+        // }
+
+        // keep toolbar from overflowing left of screen
+        if (left < 0) {
+            left = 0;
+        }
+        // keep toolbar from overflowing top of screen
+        if (top < 0) {
+            top = Math.round(dims.y + dims.h + 8);
+            Helper.addClass(this.bar, 'below');
+        } else {
+            Helper.removeClass(this.bar, 'below');
+        }
+
+        // apply the position
+        this.bar.style.top = (scrollPos + top) + 'px';
+        this.bar.style.left = left + 'px';
+    }
+
+    // matches the current tags from the selection against
+    // the buttons in the toolbar
+    highlightButtons(tags) {
+        var i, tag, listShown = false;
+
+        // remove active class from all the buttons
+        this.unHighlightButtons();
+        for (i = tags.length - 1; i >= 0; i--) {
+            tag = tags[i].toLowerCase();
+            // if the tag matches a button, set it to active
+            if (tag in this.buttonObjs) {
+                Helper.addClass(this.buttonObjs[tag], 'active');
+            }
+            if (tag === 'li' && !listShown) {
+                if (this.buttonObjs['indent']) {
+                    Helper.addClass(this.buttonObjs['indent'], 'show');
+                }
+                if (this.buttonObjs['outdent']) {
+                    Helper.addClass(this.buttonObjs['outdent'], 'show');
+                }
+                listShown = true;
+            }
+            if (tag === 'ul' || tag === 'ol') {
+                break;
+            }
+        }
+    }
+
+    // remove active class from all buttons
+    unHighlightButtons() {
+        var i;
+
+        for (i in this.buttonObjs) {
+            Helper.removeClass(this.buttonObjs[i], 'show');
+            Helper.removeClass(this.buttonObjs[i], 'active');
+        }
+    }
+}
+
+module.exports = Toolbar;
+},{"./Helper":4,"./ToolbarButton":7,"./ToolbarButtonObservable":8}],7:[function(require,module,exports){
+/*globals module, require, console, window, document, setTimeout, CustomEvent*/
+'use strict';
+var Helper = require("./Helper"),
+    ToolbarButtonObservable = require("./ToolbarButtonObservable");
+
+class ToolbarButton extends ToolbarButtonObservable {
+    constructor(buttonMap) {
+        super();
+        this.li = null;
+        this.btnNode = null;
+        this.buttonMap = buttonMap;
+    }
+
+    clicked(btnclass) {
+        this.notifyToolbarBtnClick(btnclass);
+    }
+
+    static create(btn, buttonMap, options) {
+        var button = new ToolbarButton(buttonMap),
+            context = this;
+
+        button.li = options['doc'].createElement('li');
+        button.btnNode = options['doc'].createElement('button');
+
+        // add the button class (ex: wys-editor-btn-strong)
+        button.btnNode.setAttribute('class', options.classPrefix + 'btn-' + button.buttonMap[btn][2]);
+        // if there are additional classes...
+        if (button.buttonMap[btn][3]) {
+            Helper.addClass(button.btnNode, button.buttonMap[btn][3]);
+        }
+        // add the button title (ex: bold)
+        button.btnNode.title = button.buttonMap[btn][0];
+        // add button html (ex: <strong>B</strong>)
+        button.btnNode.innerHTML = button.buttonMap[btn][1];
+
+        // add button click listener, with function to respond to event
+        button.btnNode.addEventListener("click", function (event) {
+            button.clicked(event.target.className);
+        }, false);
+
+        button.li.appendChild(button.btnNode);
+
+        return button;
+    }
+}
+
+module.exports = ToolbarButton;
+},{"./Helper":4,"./ToolbarButtonObservable":8}],8:[function(require,module,exports){
+/*globals module, require, console, window, document, setTimeout, CustomEvent*/
+'use strict';
+class ToolbarButtonObservable {
+    constructor() {
+        this.observers = [];
+    }
+
+    register(observer) {
+        this.observers.push(observer);
+    }
+
+    notifyToolbarBtnClick(btnclass) {
+        for (var i = 0; i < this.observers.length; i++) {
+            this.observers[i].notifyToolbarBtnClick(btnclass);
+        }
+    }
+}
+
+module.exports = ToolbarButtonObservable;
+},{}],9:[function(require,module,exports){
 /*jshint -W032 */ /* ignore unnecessary semicolon */
 /*globals module, console, window, document, require*/
 'use strict';
@@ -1165,7 +1253,7 @@ class SelectionModern {
 };
 
 module.exports = SelectionModern;
-},{"../Helper":4}],7:[function(require,module,exports){
+},{"../Helper":4}],10:[function(require,module,exports){
 /*jshint -W032, esnext:true */ /* -W032 = ignore unnecessary semicolon */
 /*globals module, require*/
 var HtmlEditor = require("./js/CoreEditor");

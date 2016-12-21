@@ -1,5 +1,5 @@
 /node_modules/
 /lib/ts/
 /.vscode/
-/.sass-cache/
 .DS_Store
+/.sass-cache/
