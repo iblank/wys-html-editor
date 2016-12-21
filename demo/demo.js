@@ -805,7 +805,7 @@ class Toolbar extends ToolbarButtonObservable {
         }
 
         // apply the position
-        this.bar.style.top = top + 'px';
+        this.bar.style.top = (scrollPos + top) + 'px';
         this.bar.style.left = left + 'px';
     }
 
