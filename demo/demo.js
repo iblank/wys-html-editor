@@ -717,8 +717,6 @@ class Toolbar extends ToolbarButtonObservable {
         this.focus = false;
         this.buttonObjs = {};
         this.options = options || null;
-        this.bar = options['doc'].createElement('div');
-        this.bar.style.display = 'none';
         this.buttonMap = {
             'b': ['bold', '<strong>B</strong>', 'strong'],
             'i': ['italic', '<em>I</em>', 'em'],
@@ -727,13 +725,15 @@ class Toolbar extends ToolbarButtonObservable {
             'indent': ['indent', '--&gt;', 'indent', 'special'],
             'outdent': ['outdent', '&lt;--', 'outdent', 'special']
         };
+        this.bar = options['doc'].createElement('div');
+        this.bar.style.display = 'none';
+        Helper.addClass(this.bar, options['classPrefix'] + 'toolbar');
+        this.bar.appendChild(this.createButtons());
     }
 
     static createInstance(options) {
         if (!this.instance) {
             this.instance = new Toolbar(options);
-            this.instance.bar.classList.add('wys-html-editor-toolbar');
-            this.instance.bar.appendChild(this.instance.createButtons());
         }
 
         return this.instance;
@@ -772,7 +772,6 @@ class Toolbar extends ToolbarButtonObservable {
                 toolBarButton.register(this);
                 this.buttonObjs[this.buttonMap[btns[i]][2]] = toolBarButton.btnNode;
                 ul.appendChild(toolBarButton.li);
-
             }
         }
 
