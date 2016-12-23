@@ -732,11 +732,7 @@ class Toolbar extends ToolbarButtonObservable {
     }
 
     static createInstance(options) {
-        if (!this.instance) {
-            this.instance = new Toolbar(options);
-        }
-
-        return this.instance;
+        return new Toolbar(options);
     }
 
     setFocus(focus) {
